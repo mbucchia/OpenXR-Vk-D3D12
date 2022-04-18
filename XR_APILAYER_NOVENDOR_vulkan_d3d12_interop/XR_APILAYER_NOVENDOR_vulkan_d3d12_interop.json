@@ -1,0 +1,26 @@
+{
+  "file_format_version" : "1.0.0",
+  "api_layer": {
+    "name": "XR_APILAYER_NOVENDOR_vulkan_d3d12_interop",
+    "library_path": ".\\XR_APILAYER_NOVENDOR_vulkan_d3d12_interop.dll",
+    "api_version": "1.0",
+    "implementation_version": "1",
+    "description": "Vulkan to Direct3D 12 interop",
+    "instance_extensions": [
+      {
+        "name": "XR_KHR_vulkan_enable",
+        "extension_version": 2,
+        "entrypoints": []
+      },
+      {
+        "name": "XR_KHR_vulkan_enable2",
+        "extension_version": 8,
+        "entrypoints": []
+      }
+    ],
+    "functions": {
+      "xrNegotiateLoaderApiLayerInterface": "xrNegotiateLoaderApiLayerInterface"
+    },
+    "disable_environment": "DISABLE_XR_APILAYER_NOVENDOR_vulkan_d3d12_interop"
+  }
+}
