@@ -27,10 +27,7 @@
 namespace vulkan_d3d12_interop {
 
     const std::string LayerName = "XR_APILAYER_NOVENDOR_vulkan_d3d12_interop";
-    const uint32_t VersionMajor = 0;
-    const uint32_t VersionMinor = 0;
-    const uint32_t VersionPatch = 0;
-    const std::string VersionString = "Unreleased";
+    const std::string VersionString = "Developer Preview 2 (0.1.0)";
 
     // Singleton accessor.
     OpenXrApi* GetInstance();
