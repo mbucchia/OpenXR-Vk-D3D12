@@ -1,4 +1,4 @@
-# OpenXR Vulkan to Direct3D 12 interop
+# OpenXR Vulkan on Direct3D 12 interoperability layer
 
 This software enables OpenXR apps developed for Vulkan to work with OpenXR runtimes that have support for Direct3D 12 and not Vulkan.
 
@@ -9,6 +9,7 @@ DISCLAIMER: This software is distributed as-is, without any warranties or condit
 - **THIS IS CURRENTLY DEVELOPER-QUALITY SOFTWARE.**
 - This has only been tested with Windows Mixed Reality.
 - This has only been tested with NVIDIA.
+- This has been tested with the HelloXR sample app from Khronos, and with Unity 2021.
 
 ## Setup
 

@@ -62,16 +62,23 @@ namespace LAYER_NAMESPACE {
             }
         }
 
-        // Remove the Vulkan extension(s) and add the D3D12 one instead.
+        // Remove the Vulkan extension(s) and add the D3D12 one instead (when needed).
         XrInstanceCreateInfo chainInstanceCreateInfo = *instanceCreateInfo;
         std::vector<const char*> newEnabledExtensionNames;
-        newEnabledExtensionNames.push_back("XR_KHR_D3D12_enable");
+        bool needUseD3D12 = false;
         for (uint32_t i = 0; i < chainInstanceCreateInfo.enabledExtensionCount; i++) {
             Log("Requested extension: %s\n", chainInstanceCreateInfo.enabledExtensionNames[i]);
             const std::string_view ext(chainInstanceCreateInfo.enabledExtensionNames[i]);
             if (ext != "XR_KHR_vulkan_enable" && ext != "XR_KHR_vulkan_enable2") {
                 newEnabledExtensionNames.push_back(ext.data());
+            } else {
+                needUseD3D12 = true;
             }
+        }
+        if (needUseD3D12) {
+            newEnabledExtensionNames.push_back("XR_KHR_D3D12_enable");
+        } else {
+            Log("Vulkan is not requested for the instance\n");
         }
         chainInstanceCreateInfo.enabledExtensionNames = newEnabledExtensionNames.data();
         chainInstanceCreateInfo.enabledExtensionCount = (uint32_t)newEnabledExtensionNames.size();

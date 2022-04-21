@@ -144,15 +144,16 @@ namespace {
         XrResult xrGetSystem(XrInstance instance, const XrSystemGetInfo* getInfo, XrSystemId* systemId) override {
             const XrResult result = OpenXrApi::xrGetSystem(instance, getInfo, systemId);
             if (XR_SUCCEEDED(result) && getInfo->formFactor == XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY) {
-                // Get the graphics device requirement for this system.
+                // Get the graphics device requirement for this system (if D3D12 is enabled).
                 PFN_xrGetD3D12GraphicsRequirementsKHR xrGetD3D12GraphicsRequirementsKHR = nullptr;
-                CHECK_XRCMD(
-                    xrGetInstanceProcAddr(GetXrInstance(),
-                                          "xrGetD3D12GraphicsRequirementsKHR",
-                                          reinterpret_cast<PFN_xrVoidFunction*>(&xrGetD3D12GraphicsRequirementsKHR)));
-                m_d3d12Requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_D3D12_KHR;
-                m_d3d12Requirements.next = nullptr;
-                CHECK_XRCMD(xrGetD3D12GraphicsRequirementsKHR(GetXrInstance(), *systemId, &m_d3d12Requirements));
+                if (SUCCEEDED(xrGetInstanceProcAddr(
+                        GetXrInstance(),
+                        "xrGetD3D12GraphicsRequirementsKHR",
+                        reinterpret_cast<PFN_xrVoidFunction*>(&xrGetD3D12GraphicsRequirementsKHR)))) {
+                    m_d3d12Requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_D3D12_KHR;
+                    m_d3d12Requirements.next = nullptr;
+                    CHECK_XRCMD(xrGetD3D12GraphicsRequirementsKHR(GetXrInstance(), *systemId, &m_d3d12Requirements));
+                }
 
                 XrSystemProperties systemProperties{XR_TYPE_SYSTEM_PROPERTIES};
                 CHECK_XRCMD(OpenXrApi::xrGetSystemProperties(instance, *systemId, &systemProperties));
@@ -171,9 +172,10 @@ namespace {
                                                   uint32_t bufferCapacityInput,
                                                   uint32_t* bufferCountOutput,
                                                   char* buffer) {
-            static const std::string_view instanceExtensions = "VK_KHR_external_memory_capabilities "
-                                                               "VK_KHR_get_physical_device_properties2 "
-                                                               "VK_KHR_external_semaphore_capabilities";
+            static const std::string_view instanceExtensions =
+                "VK_KHR_external_memory_capabilities VK_KHR_external_semaphore_capabilities "
+                "VK_KHR_external_fence_capabilities "
+                "VK_KHR_get_physical_device_properties2";
 
             if (bufferCapacityInput && bufferCapacityInput < instanceExtensions.size()) {
                 return XR_ERROR_SIZE_INSUFFICIENT;
@@ -360,7 +362,12 @@ namespace {
             if (XR_SUCCEEDED(result) && isSessionHandled(session) && formatCapacityInput) {
                 // Translate supported formats to Vulkan formats.
                 for (uint32_t i = 0; i < *formatCountOutput; i++) {
-                    formats[i] = (int64_t)util::DxgiToVkFormat[formats[i]];
+                    for (size_t j = 0; j < ARRAYSIZE(util::DxgiToVkFormat); j++) {
+                        if ((int64_t)util::DxgiToVkFormat[j].dxgi == formats[i]) {
+                            formats[i] = (int64_t)util::DxgiToVkFormat[j].vk;
+                            break;
+                        }
+                    }
                 }
             }
 
@@ -417,12 +424,12 @@ namespace {
                                                           IID_PPV_ARGS(newSession.d3dDevice.ReleaseAndGetAddressOf())));
 
                             // ... and the necessary queue.
-                            D3D12_COMMAND_QUEUE_DESC desc;
-                            ZeroMemory(&desc, sizeof(desc));
-                            desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-                            desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+                            D3D12_COMMAND_QUEUE_DESC queueDesc;
+                            ZeroMemory(&queueDesc, sizeof(queueDesc));
+                            queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+                            queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
                             CHECK_HRCMD(newSession.d3dDevice->CreateCommandQueue(
-                                &desc, IID_PPV_ARGS(newSession.d3dQueue.ReleaseAndGetAddressOf())));
+                                &queueDesc, IID_PPV_ARGS(newSession.d3dQueue.ReleaseAndGetAddressOf())));
 
                             // We will use a shareable fence to synchronize between the Vulkan queue and the D3D queue.
                             CHECK_HRCMD(newSession.d3dDevice->CreateFence(
@@ -533,12 +540,14 @@ namespace {
                     createInfo->usageFlags);
 
                 // Translate the format from Vulkan.
-                for (size_t i = 0; i < util::DxgiToVkFormat.size(); i++) {
-                    if (util::DxgiToVkFormat[i] == createInfo->format) {
-                        chainCreateInfo.format = i;
+                for (size_t i = 0; i < ARRAYSIZE(util::DxgiToVkFormat); i++) {
+                    if (util::DxgiToVkFormat[i].vk == createInfo->format) {
+                        chainCreateInfo.format = util::DxgiToVkFormat[i].dxgi;
                         break;
                     }
                 }
+
+                Log("Translated format: %d\n", chainCreateInfo.format);
 
                 newSwapchain.xrSession = session;
                 newSwapchain.createInfo = *createInfo;
@@ -620,6 +629,19 @@ namespace {
                 // Export each D3D12 texture to Vulkan.
                 XrSwapchainImageVulkanKHR* vkImages = reinterpret_cast<XrSwapchainImageVulkanKHR*>(images);
                 for (uint32_t i = 0; i < *imageCountOutput; i++) {
+                    // Dump the runtime texture descriptor.
+                    if (i == 0) {
+                        const auto& desc = d3dImages[0].texture->GetDesc();
+                        Log("Swapchain image descriptor:\n");
+                        Log("  w=%u h=%u arraySize=%u format=%u\n",
+                            desc.Width,
+                            desc.Height,
+                            desc.DepthOrArraySize,
+                            desc.Format);
+                        Log("  mipCount=%u sampleCount=%u\n", desc.MipLevels, desc.SampleDesc.Count);
+                        Log("  flags=0x%x\n", desc.Flags);
+                    }
+
                     wil::unique_handle textureHandle = nullptr;
                     CHECK_HRCMD(sessionState.d3dDevice->CreateSharedHandle(
                         d3dImages[i].texture, nullptr, GENERIC_ALL, nullptr, textureHandle.put()));
@@ -641,14 +663,14 @@ namespace {
                         createInfo.arrayLayers = swapchainState.createInfo.arraySize;
                         createInfo.samples = (VkSampleCountFlagBits)swapchainState.createInfo.sampleCount;
                         createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+                        createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
                         if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT) {
                             createInfo.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-                            // TODO: This is not valid, we must perform that transition ourselves (1-time).
-                            createInfo.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                            // TODO: Must transition to VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL.
                         }
                         if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
                             createInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-                            createInfo.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                            // TODO: Must transition to VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL.
                         }
                         if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_SAMPLED_BIT) {
                             createInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -739,6 +761,7 @@ namespace {
 
       private:
         void cleanupSession(Session& sessionState) {
+            vkDeviceWaitIdle(sessionState.vkDevice);
             vkDestroySemaphore(sessionState.vkDevice, sessionState.vkTimelineSemaphore, nullptr);
 
             for (auto it = m_swapchains.begin(); it != m_swapchains.end();) {
