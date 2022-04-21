@@ -6,26 +6,9 @@ DISCLAIMER: This software is distributed as-is, without any warranties or condit
 
 ## Limitations
 
-- **THIS IS CURRENTLY DEVELOPER-QUALITY SOFTWARE.**
 - This has only been tested with Windows Mixed Reality.
 - This has only been tested with NVIDIA.
 - This has been tested with the HelloXR sample app from Khronos, and with Unity 2021.
-
-## Setup
-
-1. Copy the `XR_APILAYER_NOVENDOR_vulkan_d3d12_interop.dll`, `XR_APILAYER_NOVENDOR_vulkan_d3d12_interop.json`, `Install-Layer.ps1` and `Uninstall-Layer.ps1` files to a folder in `%ProgramFiles%`, for example `%ProgramFiles%\OpenXR-Vk-D3D12`.
-
-2. Run `Install-Layer.ps1` (right-click, _Run with PowerShell_). **This must be done from within the folder where the DLL is installed.**
-
-3. (WMR only) In the _OpenXR Tools for Windows Mixed Reality_, inspect the _OpenXR Runtime_ tab:
-
- ![](wmr-tools.png)
-
-## Removal
-
-1. Run `Uninstall-Layer.ps1` (right-click, _Run with PowerShell_). **This must be done from within the folder where the DLL is installed.**
-
-2. Remove the files.
 
 ## Known issues
 
