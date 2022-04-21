@@ -16,6 +16,10 @@ For troubleshooting, the log file can be found at `%LocalAppData%\XR_APILAYER_NO
 - This has only been tested with NVIDIA.
 - This has been tested with the HelloXR sample app from Khronos, and with Unity 2021.
 
+## How does it work?
+
+This API layer sits between any OpenXR application and the OpenXR runtime. It enhances the currently selected OpenXR runtime with the OpenXR extensions necessary for Vulkan support (`XR_KHR_vulkan_enable` and `XR_KHR_vulkan_enable2`). It uses the OpenXR runtime's Direct3D 12 support to efficiently bridge the application's Vulkan rendering to Direct3D 12. This processes does not add any overhead: the swapchains (drawing surfaces) requested by the application in Vulkan formats are imported as-is from Direct3D 12, there is no additional copy nor composition phase. Upon submission of the rendered frame, a simple fence synchronization primitive is inserted in the GPU queue shared with the OpenXR runtime, which will not block the application's rendering loop.
+
 ## Known issues
 
 - Applications using legacy `XR_KHR_vulkan_enable` must enable Vulkan timeline semaphores at device creation time.
@@ -27,3 +31,5 @@ For troubleshooting, the log file can be found at `%LocalAppData%\XR_APILAYER_NO
 
     // Chain timelineSemaphoreFeatures to your VkDeviceCreateInfo struct.
 ```
+
+If you are having issues, please visit the [Issues page](https://github.com/mbucchia/OpenXR-Vk-D3D12/issues) to look at existing support requests or to file a new one.
