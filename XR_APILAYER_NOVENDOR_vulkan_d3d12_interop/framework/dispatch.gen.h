@@ -155,6 +155,70 @@ namespace LAYER_NAMESPACE
 	private:
 		PFN_xrEndFrame m_xrEndFrame{ nullptr };
 
+	public:
+		virtual XrResult xrGetVulkanInstanceExtensionsKHR(XrInstance instance, XrSystemId systemId, uint32_t bufferCapacityInput, uint32_t* bufferCountOutput, char* buffer)
+		{
+			return m_xrGetVulkanInstanceExtensionsKHR(instance, systemId, bufferCapacityInput, bufferCountOutput, buffer);
+		}
+	private:
+		PFN_xrGetVulkanInstanceExtensionsKHR m_xrGetVulkanInstanceExtensionsKHR{ nullptr };
+
+	public:
+		virtual XrResult xrGetVulkanDeviceExtensionsKHR(XrInstance instance, XrSystemId systemId, uint32_t bufferCapacityInput, uint32_t* bufferCountOutput, char* buffer)
+		{
+			return m_xrGetVulkanDeviceExtensionsKHR(instance, systemId, bufferCapacityInput, bufferCountOutput, buffer);
+		}
+	private:
+		PFN_xrGetVulkanDeviceExtensionsKHR m_xrGetVulkanDeviceExtensionsKHR{ nullptr };
+
+	public:
+		virtual XrResult xrGetVulkanGraphicsDeviceKHR(XrInstance instance, XrSystemId systemId, VkInstance vkInstance, VkPhysicalDevice* vkPhysicalDevice)
+		{
+			return m_xrGetVulkanGraphicsDeviceKHR(instance, systemId, vkInstance, vkPhysicalDevice);
+		}
+	private:
+		PFN_xrGetVulkanGraphicsDeviceKHR m_xrGetVulkanGraphicsDeviceKHR{ nullptr };
+
+	public:
+		virtual XrResult xrGetVulkanGraphicsRequirementsKHR(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsVulkanKHR* graphicsRequirements)
+		{
+			return m_xrGetVulkanGraphicsRequirementsKHR(instance, systemId, graphicsRequirements);
+		}
+	private:
+		PFN_xrGetVulkanGraphicsRequirementsKHR m_xrGetVulkanGraphicsRequirementsKHR{ nullptr };
+
+	public:
+		virtual XrResult xrCreateVulkanInstanceKHR(XrInstance instance, const XrVulkanInstanceCreateInfoKHR* createInfo, VkInstance* vulkanInstance, VkResult* vulkanResult)
+		{
+			return m_xrCreateVulkanInstanceKHR(instance, createInfo, vulkanInstance, vulkanResult);
+		}
+	private:
+		PFN_xrCreateVulkanInstanceKHR m_xrCreateVulkanInstanceKHR{ nullptr };
+
+	public:
+		virtual XrResult xrCreateVulkanDeviceKHR(XrInstance instance, const XrVulkanDeviceCreateInfoKHR* createInfo, VkDevice* vulkanDevice, VkResult* vulkanResult)
+		{
+			return m_xrCreateVulkanDeviceKHR(instance, createInfo, vulkanDevice, vulkanResult);
+		}
+	private:
+		PFN_xrCreateVulkanDeviceKHR m_xrCreateVulkanDeviceKHR{ nullptr };
+
+	public:
+		virtual XrResult xrGetVulkanGraphicsDevice2KHR(XrInstance instance, const XrVulkanGraphicsDeviceGetInfoKHR* getInfo, VkPhysicalDevice* vulkanPhysicalDevice)
+		{
+			return m_xrGetVulkanGraphicsDevice2KHR(instance, getInfo, vulkanPhysicalDevice);
+		}
+	private:
+		PFN_xrGetVulkanGraphicsDevice2KHR m_xrGetVulkanGraphicsDevice2KHR{ nullptr };
+
+	public:
+		virtual XrResult xrGetVulkanGraphicsRequirements2KHR(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsVulkanKHR* graphicsRequirements)
+		{
+			return m_xrGetVulkanGraphicsRequirements2KHR(instance, systemId, graphicsRequirements);
+		}
+	private:
+		PFN_xrGetVulkanGraphicsRequirements2KHR m_xrGetVulkanGraphicsRequirements2KHR{ nullptr };
+
 
 
 	};

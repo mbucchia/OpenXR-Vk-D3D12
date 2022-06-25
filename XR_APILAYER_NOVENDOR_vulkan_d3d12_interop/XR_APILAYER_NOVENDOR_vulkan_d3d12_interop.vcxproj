@@ -164,10 +164,6 @@ copy $(SolutionDir)\scripts\Uninstall-Layer.ps1 $(OutDir)
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="framework\dispatch.cpp" />
-    <ClCompile Include="framework\dispatch.ext.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="framework\dispatch.gen.cpp" />
     <ClCompile Include="framework\entry.cpp" />
     <ClCompile Include="layer.cpp" />

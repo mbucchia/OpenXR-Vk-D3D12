@@ -7,7 +7,15 @@ override_functions = [
     "xrCreateSwapchain",
     "xrDestroySwapchain",
     "xrEnumerateSwapchainImages",
-    "xrEndFrame"
+    "xrEndFrame",
+    "xrGetVulkanInstanceExtensionsKHR",
+    "xrGetVulkanDeviceExtensionsKHR",
+    "xrGetVulkanGraphicsDeviceKHR",
+    "xrCreateVulkanInstanceKHR",
+    "xrCreateVulkanDeviceKHR",
+    "xrGetVulkanGraphicsDevice2KHR",
+    "xrGetVulkanGraphicsRequirementsKHR",
+    "xrGetVulkanGraphicsRequirements2KHR"
 ]
 
 # The list of OpenXR functions our layer will use from the runtime.

@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 import os
+import re
 import sys
 
 # Import dependencies from the OpenXR SDK.
@@ -154,7 +155,7 @@ namespace LAYER_NAMESPACE
     def genWrappers(self):
         generated = ''
 
-        for cur_cmd in self.core_commands:
+        for cur_cmd in self.core_commands + self.ext_commands:
             if cur_cmd.name in layer_apis.override_functions:
                 parameters_list = self.makeParametersList(cur_cmd)
                 arguments_list = self.makeArgumentsList(cur_cmd)
@@ -207,7 +208,7 @@ namespace LAYER_NAMESPACE
     {
 '''
 
-        for cur_cmd in self.core_commands:
+        for cur_cmd in self.core_commands + self.ext_commands:
             if cur_cmd.name in layer_apis.requested_functions:
                 generated += f'''		if (XR_FAILED(m_xrGetInstanceProcAddr(m_instance, "{cur_cmd.name}", reinterpret_cast<PFN_xrVoidFunction*>(&m_{cur_cmd.name}))))
 		{{
@@ -226,28 +227,36 @@ namespace LAYER_NAMESPACE
 	{
 		XrResult result = m_xrGetInstanceProcAddr(instance, name, function);
 
-		if (XR_SUCCEEDED(result))
-		{
-			const std::string apiName(name);
+		const std::string apiName(name);
 
-			if (apiName == "xrDestroyInstance")
-			{
-				m_xrDestroyInstance = reinterpret_cast<PFN_xrDestroyInstance>(*function);
-				*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrDestroyInstance);
-			}
+		if (apiName == "xrDestroyInstance")
+		{
+			m_xrDestroyInstance = reinterpret_cast<PFN_xrDestroyInstance>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrDestroyInstance);
+		}
 '''
 
         for cur_cmd in self.core_commands:
             if cur_cmd.name in layer_apis.override_functions:
-                generated += f'''			else if (apiName == "{cur_cmd.name}")
-			{{
-				m_{cur_cmd.name} = reinterpret_cast<PFN_{cur_cmd.name}>(*function);
-				*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::{cur_cmd.name});
-			}}
+                generated += f'''		else if (apiName == "{cur_cmd.name}")
+		{{
+			m_{cur_cmd.name} = reinterpret_cast<PFN_{cur_cmd.name}>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::{cur_cmd.name});
+		}}
+'''
+
+        # Always advertise extension functions.
+        for cur_cmd in self.ext_commands:
+            if cur_cmd.name in layer_apis.override_functions:
+                generated += f'''		else if (apiName == "{cur_cmd.name}")
+		{{
+			m_{cur_cmd.name} = reinterpret_cast<PFN_{cur_cmd.name}>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::{cur_cmd.name});
+			result = XR_SUCCESS;
+		}}
 '''
 
         generated += '''
-		}
 
 		return result;
 	}'''
@@ -327,7 +336,7 @@ namespace LAYER_NAMESPACE
         generated = ''
 
         commands_to_include = list(set(layer_apis.override_functions + layer_apis.requested_functions + ['xrDestroyInstance']))
-        for cur_cmd in self.core_commands:
+        for cur_cmd in self.core_commands + self.ext_commands:
             if cur_cmd.name in commands_to_include:
                 parameters_list = self.makeParametersList(cur_cmd)
                 arguments_list = self.makeArgumentsList(cur_cmd)
@@ -356,13 +365,19 @@ namespace LAYER_NAMESPACE
                 
         return generated
 
+def makeREstring(strings, default=None):
+    """Turn a list of strings into a regexp string matching exactly those strings."""
+    if strings or default is None:
+        return '^(' + '|'.join((re.escape(s) for s in strings)) + ')$'
+    return default
 
 if __name__ == '__main__':
     registry = Registry()
     registry.loadFile(os.path.join(sdk_dir, 'specification', 'registry', 'xr.xml'))
 
     conventions = OpenXRConventions()
-    featuresPat = "XR_VERSION_1_0"
+    featuresPat = 'XR_VERSION_1_0'
+    extensionsPat = makeREstring(['XR_KHR_vulkan_enable', 'XR_KHR_vulkan_enable2'])
 
     registry.setGenerator(DispatchGenCppOutputGenerator(diagFile=None))
     registry.apiGen(AutomaticSourceGeneratorOptions(
@@ -376,7 +391,7 @@ if __name__ == '__main__':
             defaultExtensions = 'openxr',
             addExtensions     = None,
             removeExtensions  = None,
-            emitExtensions    = None))
+            emitExtensions    = extensionsPat))
 
     registry.setGenerator(DispatchGenHOutputGenerator(diagFile=None))
     registry.apiGen(AutomaticSourceGeneratorOptions(
@@ -390,4 +405,4 @@ if __name__ == '__main__':
             defaultExtensions = 'openxr',
             addExtensions     = None,
             removeExtensions  = None,
-            emitExtensions    = None))
+            emitExtensions    = extensionsPat))

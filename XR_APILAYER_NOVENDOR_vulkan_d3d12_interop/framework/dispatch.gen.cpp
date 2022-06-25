@@ -199,63 +199,268 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
+	XrResult xrGetVulkanInstanceExtensionsKHR(XrInstance instance, XrSystemId systemId, uint32_t bufferCapacityInput, uint32_t* bufferCountOutput, char* buffer)
+	{
+		DebugLog("--> xrGetVulkanInstanceExtensionsKHR\n");
+
+		XrResult result;
+		try
+		{
+			result = LAYER_NAMESPACE::GetInstance()->xrGetVulkanInstanceExtensionsKHR(instance, systemId, bufferCapacityInput, bufferCountOutput, buffer);
+		}
+		catch (std::exception exc)
+		{
+			Log("%s\n", exc.what());
+			result = XR_ERROR_RUNTIME_FAILURE;
+		}
+
+		DebugLog("<-- xrGetVulkanInstanceExtensionsKHR %d\n", result);
+
+		return result;
+	}
+
+	XrResult xrGetVulkanDeviceExtensionsKHR(XrInstance instance, XrSystemId systemId, uint32_t bufferCapacityInput, uint32_t* bufferCountOutput, char* buffer)
+	{
+		DebugLog("--> xrGetVulkanDeviceExtensionsKHR\n");
+
+		XrResult result;
+		try
+		{
+			result = LAYER_NAMESPACE::GetInstance()->xrGetVulkanDeviceExtensionsKHR(instance, systemId, bufferCapacityInput, bufferCountOutput, buffer);
+		}
+		catch (std::exception exc)
+		{
+			Log("%s\n", exc.what());
+			result = XR_ERROR_RUNTIME_FAILURE;
+		}
+
+		DebugLog("<-- xrGetVulkanDeviceExtensionsKHR %d\n", result);
+
+		return result;
+	}
+
+	XrResult xrGetVulkanGraphicsDeviceKHR(XrInstance instance, XrSystemId systemId, VkInstance vkInstance, VkPhysicalDevice* vkPhysicalDevice)
+	{
+		DebugLog("--> xrGetVulkanGraphicsDeviceKHR\n");
+
+		XrResult result;
+		try
+		{
+			result = LAYER_NAMESPACE::GetInstance()->xrGetVulkanGraphicsDeviceKHR(instance, systemId, vkInstance, vkPhysicalDevice);
+		}
+		catch (std::exception exc)
+		{
+			Log("%s\n", exc.what());
+			result = XR_ERROR_RUNTIME_FAILURE;
+		}
+
+		DebugLog("<-- xrGetVulkanGraphicsDeviceKHR %d\n", result);
+
+		return result;
+	}
+
+	XrResult xrGetVulkanGraphicsRequirementsKHR(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsVulkanKHR* graphicsRequirements)
+	{
+		DebugLog("--> xrGetVulkanGraphicsRequirementsKHR\n");
+
+		XrResult result;
+		try
+		{
+			result = LAYER_NAMESPACE::GetInstance()->xrGetVulkanGraphicsRequirementsKHR(instance, systemId, graphicsRequirements);
+		}
+		catch (std::exception exc)
+		{
+			Log("%s\n", exc.what());
+			result = XR_ERROR_RUNTIME_FAILURE;
+		}
+
+		DebugLog("<-- xrGetVulkanGraphicsRequirementsKHR %d\n", result);
+
+		return result;
+	}
+
+	XrResult xrCreateVulkanInstanceKHR(XrInstance instance, const XrVulkanInstanceCreateInfoKHR* createInfo, VkInstance* vulkanInstance, VkResult* vulkanResult)
+	{
+		DebugLog("--> xrCreateVulkanInstanceKHR\n");
+
+		XrResult result;
+		try
+		{
+			result = LAYER_NAMESPACE::GetInstance()->xrCreateVulkanInstanceKHR(instance, createInfo, vulkanInstance, vulkanResult);
+		}
+		catch (std::exception exc)
+		{
+			Log("%s\n", exc.what());
+			result = XR_ERROR_RUNTIME_FAILURE;
+		}
+
+		DebugLog("<-- xrCreateVulkanInstanceKHR %d\n", result);
+
+		return result;
+	}
+
+	XrResult xrCreateVulkanDeviceKHR(XrInstance instance, const XrVulkanDeviceCreateInfoKHR* createInfo, VkDevice* vulkanDevice, VkResult* vulkanResult)
+	{
+		DebugLog("--> xrCreateVulkanDeviceKHR\n");
+
+		XrResult result;
+		try
+		{
+			result = LAYER_NAMESPACE::GetInstance()->xrCreateVulkanDeviceKHR(instance, createInfo, vulkanDevice, vulkanResult);
+		}
+		catch (std::exception exc)
+		{
+			Log("%s\n", exc.what());
+			result = XR_ERROR_RUNTIME_FAILURE;
+		}
+
+		DebugLog("<-- xrCreateVulkanDeviceKHR %d\n", result);
+
+		return result;
+	}
+
+	XrResult xrGetVulkanGraphicsDevice2KHR(XrInstance instance, const XrVulkanGraphicsDeviceGetInfoKHR* getInfo, VkPhysicalDevice* vulkanPhysicalDevice)
+	{
+		DebugLog("--> xrGetVulkanGraphicsDevice2KHR\n");
+
+		XrResult result;
+		try
+		{
+			result = LAYER_NAMESPACE::GetInstance()->xrGetVulkanGraphicsDevice2KHR(instance, getInfo, vulkanPhysicalDevice);
+		}
+		catch (std::exception exc)
+		{
+			Log("%s\n", exc.what());
+			result = XR_ERROR_RUNTIME_FAILURE;
+		}
+
+		DebugLog("<-- xrGetVulkanGraphicsDevice2KHR %d\n", result);
+
+		return result;
+	}
+
+	XrResult xrGetVulkanGraphicsRequirements2KHR(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsVulkanKHR* graphicsRequirements)
+	{
+		DebugLog("--> xrGetVulkanGraphicsRequirements2KHR\n");
+
+		XrResult result;
+		try
+		{
+			result = LAYER_NAMESPACE::GetInstance()->xrGetVulkanGraphicsRequirements2KHR(instance, systemId, graphicsRequirements);
+		}
+		catch (std::exception exc)
+		{
+			Log("%s\n", exc.what());
+			result = XR_ERROR_RUNTIME_FAILURE;
+		}
+
+		DebugLog("<-- xrGetVulkanGraphicsRequirements2KHR %d\n", result);
+
+		return result;
+	}
+
 
 	// Auto-generated dispatcher handler.
 	XrResult OpenXrApi::xrGetInstanceProcAddr(XrInstance instance, const char* name, PFN_xrVoidFunction* function)
 	{
 		XrResult result = m_xrGetInstanceProcAddr(instance, name, function);
 
-		if (XR_SUCCEEDED(result))
+		const std::string apiName(name);
+
+		if (apiName == "xrDestroyInstance")
 		{
-			const std::string apiName(name);
-
-			if (apiName == "xrDestroyInstance")
-			{
-				m_xrDestroyInstance = reinterpret_cast<PFN_xrDestroyInstance>(*function);
-				*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrDestroyInstance);
-			}
-			else if (apiName == "xrGetSystem")
-			{
-				m_xrGetSystem = reinterpret_cast<PFN_xrGetSystem>(*function);
-				*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrGetSystem);
-			}
-			else if (apiName == "xrCreateSession")
-			{
-				m_xrCreateSession = reinterpret_cast<PFN_xrCreateSession>(*function);
-				*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrCreateSession);
-			}
-			else if (apiName == "xrDestroySession")
-			{
-				m_xrDestroySession = reinterpret_cast<PFN_xrDestroySession>(*function);
-				*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrDestroySession);
-			}
-			else if (apiName == "xrEnumerateSwapchainFormats")
-			{
-				m_xrEnumerateSwapchainFormats = reinterpret_cast<PFN_xrEnumerateSwapchainFormats>(*function);
-				*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrEnumerateSwapchainFormats);
-			}
-			else if (apiName == "xrCreateSwapchain")
-			{
-				m_xrCreateSwapchain = reinterpret_cast<PFN_xrCreateSwapchain>(*function);
-				*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrCreateSwapchain);
-			}
-			else if (apiName == "xrDestroySwapchain")
-			{
-				m_xrDestroySwapchain = reinterpret_cast<PFN_xrDestroySwapchain>(*function);
-				*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrDestroySwapchain);
-			}
-			else if (apiName == "xrEnumerateSwapchainImages")
-			{
-				m_xrEnumerateSwapchainImages = reinterpret_cast<PFN_xrEnumerateSwapchainImages>(*function);
-				*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrEnumerateSwapchainImages);
-			}
-			else if (apiName == "xrEndFrame")
-			{
-				m_xrEndFrame = reinterpret_cast<PFN_xrEndFrame>(*function);
-				*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrEndFrame);
-			}
-
+			m_xrDestroyInstance = reinterpret_cast<PFN_xrDestroyInstance>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrDestroyInstance);
 		}
+		else if (apiName == "xrGetSystem")
+		{
+			m_xrGetSystem = reinterpret_cast<PFN_xrGetSystem>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrGetSystem);
+		}
+		else if (apiName == "xrCreateSession")
+		{
+			m_xrCreateSession = reinterpret_cast<PFN_xrCreateSession>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrCreateSession);
+		}
+		else if (apiName == "xrDestroySession")
+		{
+			m_xrDestroySession = reinterpret_cast<PFN_xrDestroySession>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrDestroySession);
+		}
+		else if (apiName == "xrEnumerateSwapchainFormats")
+		{
+			m_xrEnumerateSwapchainFormats = reinterpret_cast<PFN_xrEnumerateSwapchainFormats>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrEnumerateSwapchainFormats);
+		}
+		else if (apiName == "xrCreateSwapchain")
+		{
+			m_xrCreateSwapchain = reinterpret_cast<PFN_xrCreateSwapchain>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrCreateSwapchain);
+		}
+		else if (apiName == "xrDestroySwapchain")
+		{
+			m_xrDestroySwapchain = reinterpret_cast<PFN_xrDestroySwapchain>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrDestroySwapchain);
+		}
+		else if (apiName == "xrEnumerateSwapchainImages")
+		{
+			m_xrEnumerateSwapchainImages = reinterpret_cast<PFN_xrEnumerateSwapchainImages>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrEnumerateSwapchainImages);
+		}
+		else if (apiName == "xrEndFrame")
+		{
+			m_xrEndFrame = reinterpret_cast<PFN_xrEndFrame>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrEndFrame);
+		}
+		else if (apiName == "xrGetVulkanInstanceExtensionsKHR")
+		{
+			m_xrGetVulkanInstanceExtensionsKHR = reinterpret_cast<PFN_xrGetVulkanInstanceExtensionsKHR>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrGetVulkanInstanceExtensionsKHR);
+			result = XR_SUCCESS;
+		}
+		else if (apiName == "xrGetVulkanDeviceExtensionsKHR")
+		{
+			m_xrGetVulkanDeviceExtensionsKHR = reinterpret_cast<PFN_xrGetVulkanDeviceExtensionsKHR>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrGetVulkanDeviceExtensionsKHR);
+			result = XR_SUCCESS;
+		}
+		else if (apiName == "xrGetVulkanGraphicsDeviceKHR")
+		{
+			m_xrGetVulkanGraphicsDeviceKHR = reinterpret_cast<PFN_xrGetVulkanGraphicsDeviceKHR>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrGetVulkanGraphicsDeviceKHR);
+			result = XR_SUCCESS;
+		}
+		else if (apiName == "xrGetVulkanGraphicsRequirementsKHR")
+		{
+			m_xrGetVulkanGraphicsRequirementsKHR = reinterpret_cast<PFN_xrGetVulkanGraphicsRequirementsKHR>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrGetVulkanGraphicsRequirementsKHR);
+			result = XR_SUCCESS;
+		}
+		else if (apiName == "xrCreateVulkanInstanceKHR")
+		{
+			m_xrCreateVulkanInstanceKHR = reinterpret_cast<PFN_xrCreateVulkanInstanceKHR>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrCreateVulkanInstanceKHR);
+			result = XR_SUCCESS;
+		}
+		else if (apiName == "xrCreateVulkanDeviceKHR")
+		{
+			m_xrCreateVulkanDeviceKHR = reinterpret_cast<PFN_xrCreateVulkanDeviceKHR>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrCreateVulkanDeviceKHR);
+			result = XR_SUCCESS;
+		}
+		else if (apiName == "xrGetVulkanGraphicsDevice2KHR")
+		{
+			m_xrGetVulkanGraphicsDevice2KHR = reinterpret_cast<PFN_xrGetVulkanGraphicsDevice2KHR>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrGetVulkanGraphicsDevice2KHR);
+			result = XR_SUCCESS;
+		}
+		else if (apiName == "xrGetVulkanGraphicsRequirements2KHR")
+		{
+			m_xrGetVulkanGraphicsRequirements2KHR = reinterpret_cast<PFN_xrGetVulkanGraphicsRequirements2KHR>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrGetVulkanGraphicsRequirements2KHR);
+			result = XR_SUCCESS;
+		}
+
 
 		return result;
 	}
