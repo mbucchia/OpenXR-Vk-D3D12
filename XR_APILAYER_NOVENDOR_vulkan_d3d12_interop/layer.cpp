@@ -1227,3 +1227,17 @@ namespace vulkan_d3d12_interop {
     }
 
 } // namespace vulkan_d3d12_interop
+
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved) {
+    switch (ul_reason_for_call) {
+    case DLL_PROCESS_ATTACH:
+        TraceLoggingRegister(vulkan_d3d12_interop::log::g_traceProvider);
+        break;
+
+    case DLL_THREAD_ATTACH:
+    case DLL_THREAD_DETACH:
+    case DLL_PROCESS_DETACH:
+        break;
+    }
+    return TRUE;
+}

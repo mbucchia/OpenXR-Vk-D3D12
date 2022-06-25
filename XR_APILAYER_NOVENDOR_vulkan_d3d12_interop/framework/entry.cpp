@@ -54,9 +54,6 @@ XrResult __declspec(dllexport) XRAPI_CALL
     xrNegotiateLoaderApiLayerInterface(const XrNegotiateLoaderInfo* const loaderInfo,
                                        const char* const apiLayerName,
                                        XrNegotiateApiLayerRequest* const apiLayerRequest) {
-    // Register tracelogging provider.
-    TraceLoggingRegister(LAYER_NAMESPACE::log::g_traceProvider);
-
     TraceLoggingWrite(g_traceProvider, "xrNegotiateLoaderApiLayerInterface");
 
     // Start logging to file.
