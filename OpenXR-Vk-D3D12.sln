@@ -17,6 +17,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Scripts", "Scripts", "{BA775DE9-671E-4E3B-92AC-9828C2AAF490}"
 	ProjectSection(SolutionItems) = preProject
 		scripts\Install-Layer.ps1 = scripts\Install-Layer.ps1
+		scripts\OpenXR-Vk-D3D12.wprp = scripts\OpenXR-Vk-D3D12.wprp
 		scripts\Uninstall-Layer.ps1 = scripts\Uninstall-Layer.ps1
 	EndProjectSection
 EndProject

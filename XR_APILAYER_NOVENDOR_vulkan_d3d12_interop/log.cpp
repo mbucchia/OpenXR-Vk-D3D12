@@ -22,8 +22,20 @@
 
 #include "pch.h"
 
+namespace {
+    constexpr uint32_t k_maxLoggedErrors = 100;
+    uint32_t g_globalErrorCount = 0;
+} // namespace
+
 namespace vulkan_d3d12_interop::log {
     extern std::ofstream logStream;
+
+    // {cbf3adcd-42b1-4c38-830b-91980af201f8}
+    TRACELOGGING_DEFINE_PROVIDER(g_traceProvider,
+                                 "OpenXR-Vk-D3D12",
+                                 (0xcbf3adcd, 0x42b1, 0x4c38, 0x83, 0x0b, 0x91, 0x98, 0x0a, 0xf2, 0x01, 0xf8));
+
+    TraceLoggingActivity<g_traceProvider> g_traceActivity;
 
     namespace {
 
@@ -48,6 +60,18 @@ namespace vulkan_d3d12_interop::log {
         va_start(va, fmt);
         InternalLog(fmt, va);
         va_end(va);
+    }
+
+    void ErrorLog(const char* fmt, ...) {
+        if (g_globalErrorCount++ < k_maxLoggedErrors) {
+            va_list va;
+            va_start(va, fmt);
+            InternalLog(fmt, va);
+            va_end(va);
+            if (g_globalErrorCount == k_maxLoggedErrors) {
+                Log("Maximum number of errors logged. Going silent.");
+            }
+        }
     }
 
     void DebugLog(const char* fmt, ...) {

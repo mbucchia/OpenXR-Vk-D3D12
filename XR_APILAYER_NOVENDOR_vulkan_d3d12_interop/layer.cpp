@@ -28,6 +28,14 @@
 #include "log.h"
 #include "util.h"
 
+namespace xr {
+
+    static inline std::string ToString(XrVersion version) {
+        return fmt::format("{}.{}.{}", XR_VERSION_MAJOR(version), XR_VERSION_MINOR(version), XR_VERSION_PATCH(version));
+    }
+
+} // namespace xr
+
 namespace {
 
     using namespace vulkan_d3d12_interop;
@@ -97,6 +105,28 @@ namespace {
         }
 
         XrResult xrCreateInstance(const XrInstanceCreateInfo* createInfo) override {
+            if (createInfo->type != XR_TYPE_INSTANCE_CREATE_INFO) {
+                return XR_ERROR_VALIDATION_FAILURE;
+            }
+
+            TraceLoggingWrite(g_traceProvider,
+                              "xrCreateInstance",
+                              TLArg(xr::ToString(createInfo->applicationInfo.apiVersion).c_str(), "ApiVersion"),
+                              TLArg(createInfo->applicationInfo.applicationName, "ApplicationName"),
+                              TLArg(createInfo->applicationInfo.applicationVersion, "ApplicationVersion"),
+                              TLArg(createInfo->applicationInfo.engineName, "EngineName"),
+                              TLArg(createInfo->applicationInfo.engineVersion, "EngineVersion"),
+                              TLArg(createInfo->createFlags, "CreateFlags"));
+
+            for (uint32_t i = 0; i < createInfo->enabledApiLayerCount; i++) {
+                TraceLoggingWrite(
+                    g_traceProvider, "xrCreateInstance", TLArg(createInfo->enabledApiLayerNames[i], "ApiLayerName"));
+            }
+            for (uint32_t i = 0; i < createInfo->enabledExtensionCount; i++) {
+                TraceLoggingWrite(
+                    g_traceProvider, "xrCreateInstance", TLArg(createInfo->enabledExtensionNames[i], "ExtensionName"));
+            }
+
             // Needed to resolve the requested function pointers.
             OpenXrApi::xrCreateInstance(createInfo);
 
@@ -108,6 +138,7 @@ namespace {
                                                  XR_VERSION_MAJOR(instanceProperties.runtimeVersion),
                                                  XR_VERSION_MINOR(instanceProperties.runtimeVersion),
                                                  XR_VERSION_PATCH(instanceProperties.runtimeVersion));
+            TraceLoggingWrite(g_traceProvider, "xrCreateInstance", TLArg(runtimeName.c_str(), "RuntimeName"));
             Log("Application: %s\n", GetApplicationName().c_str());
             Log("Using OpenXR runtime: %s\n", runtimeName.c_str());
 
@@ -115,6 +146,15 @@ namespace {
         }
 
         XrResult xrGetSystem(XrInstance instance, const XrSystemGetInfo* getInfo, XrSystemId* systemId) override {
+            if (getInfo->type != XR_TYPE_SYSTEM_GET_INFO) {
+                return XR_ERROR_VALIDATION_FAILURE;
+            }
+
+            TraceLoggingWrite(g_traceProvider,
+                              "xrGetSystem",
+                              TLPArg(instance, "Instance"),
+                              TLArg(xr::ToCString(getInfo->formFactor), "FormFactor"));
+
             const XrResult result = OpenXrApi::xrGetSystem(instance, getInfo, systemId);
             if (XR_SUCCEEDED(result) && getInfo->formFactor == XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY) {
                 // Get the graphics device requirement for this system (if D3D12 is enabled).
@@ -126,15 +166,23 @@ namespace {
                     m_d3d12Requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_D3D12_KHR;
                     m_d3d12Requirements.next = nullptr;
                     CHECK_XRCMD(xrGetD3D12GraphicsRequirementsKHR(GetXrInstance(), *systemId, &m_d3d12Requirements));
+                    TraceLoggingWrite(g_traceProvider,
+                                      "xrGetSystem",
+                                      TraceLoggingCharArray(
+                                          (char*)&m_d3d12Requirements.adapterLuid, sizeof(LUID), "D3D12_AdapterLuid"),
+                                      TLArg((int)m_d3d12Requirements.minFeatureLevel, "D3D12_MinFeatureLevel"));
                 }
 
                 XrSystemProperties systemProperties{XR_TYPE_SYSTEM_PROPERTIES};
                 CHECK_XRCMD(OpenXrApi::xrGetSystemProperties(instance, *systemId, &systemProperties));
+                TraceLoggingWrite(g_traceProvider, "xrGetSystem", TLArg(systemProperties.systemName, "SystemName"));
                 Log("Using OpenXR system: %s\n", systemProperties.systemName);
 
                 // Remember the XrSystemId to use.
                 m_systemId = *systemId;
             }
+
+            TraceLoggingWrite(g_traceProvider, "xrGetSystem", TLArg((int)*systemId, "SystemId"));
 
             return result;
         }
@@ -150,13 +198,23 @@ namespace {
                 "VK_KHR_external_fence_capabilities "
                 "VK_KHR_get_physical_device_properties2";
 
+            TraceLoggingWrite(g_traceProvider,
+                              "xrGetVulkanInstanceExtensionsKHR",
+                              TLPArg(instance, "Instance"),
+                              TLArg((int)systemId, "SystemId"),
+                              TLArg(bufferCapacityInput, "BufferCapacityInput"));
+
             if (bufferCapacityInput && bufferCapacityInput < instanceExtensions.size()) {
                 return XR_ERROR_SIZE_INSUFFICIENT;
             }
 
             *bufferCountOutput = (uint32_t)instanceExtensions.size() + 1;
-            if (bufferCapacityInput) {
+            TraceLoggingWrite(
+                g_traceProvider, "xrGetVulkanInstanceExtensionsKHR", TLArg(*bufferCountOutput, "BufferCountOutput"));
+
+            if (bufferCapacityInput && buffer) {
                 sprintf_s(buffer, bufferCapacityInput, "%s", instanceExtensions.data());
+                TraceLoggingWrite(g_traceProvider, "xrGetVulkanInstanceExtensionsKHR", TLArg(buffer, "Extension"));
             }
 
             return XR_SUCCESS;
@@ -174,13 +232,23 @@ namespace {
                 "VK_KHR_external_memory_win32 VK_KHR_timeline_semaphore "
                 "VK_KHR_external_semaphore VK_KHR_external_semaphore_win32";
 
+            TraceLoggingWrite(g_traceProvider,
+                              "xrGetVulkanDeviceExtensionsKHR",
+                              TLPArg(instance, "Instance"),
+                              TLArg((int)systemId, "SystemId"),
+                              TLArg(bufferCapacityInput, "BufferCapacityInput"));
+
             if (bufferCapacityInput && bufferCapacityInput < deviceExtensions.size()) {
                 return XR_ERROR_SIZE_INSUFFICIENT;
             }
 
             *bufferCountOutput = (uint32_t)deviceExtensions.size() + 1;
-            if (bufferCapacityInput) {
+            TraceLoggingWrite(
+                g_traceProvider, "xrGetVulkanDeviceExtensionsKHR", TLArg(*bufferCountOutput, "BufferCountOutput"));
+
+            if (bufferCapacityInput && buffer) {
                 sprintf_s(buffer, bufferCapacityInput, "%s", deviceExtensions.data());
+                TraceLoggingWrite(g_traceProvider, "xrGetVulkanDeviceExtensionsKHR", TLArg(buffer, "Extension"));
             }
 
             return XR_SUCCESS;
@@ -191,6 +259,12 @@ namespace {
                                               XrSystemId systemId,
                                               VkInstance vkInstance,
                                               VkPhysicalDevice* vkPhysicalDevice) override {
+            TraceLoggingWrite(g_traceProvider,
+                              "xrGetVulkanGraphicsDeviceKHR",
+                              TLPArg(instance, "Instance"),
+                              TLArg((int)systemId, "SystemId"),
+                              TLPArg(vkInstance, "VkInstance"));
+
             uint32_t deviceCount = 0;
             CHECK_VKCMD(vkEnumeratePhysicalDevices(vkInstance, &deviceCount, nullptr));
             std::vector<VkPhysicalDevice> devices(deviceCount);
@@ -208,6 +282,15 @@ namespace {
                 }
 
                 if (!memcmp(&m_d3d12Requirements.adapterLuid, deviceId.deviceLUID, sizeof(LUID))) {
+                    TraceLoggingWrite(g_traceProvider,
+                                      "xrGetVulkanDeviceExtensionsKHR",
+                                      TLArg(properties.properties.deviceName, "DeviceName"),
+                                      TLArg((int)properties.properties.deviceType, "DeviceType"),
+                                      TLArg(properties.properties.vendorID, "VendorId"));
+                    Log("Using Vulkan on adapter: %s\n", properties.properties.deviceName);
+
+                    TraceLoggingWrite(
+                        g_traceProvider, "xrGetVulkanDeviceExtensionsKHR", TLPArg(device, "VkPhysicalDevice"));
                     *vkPhysicalDevice = device;
                     found = true;
                     break;
@@ -223,32 +306,52 @@ namespace {
                                            const XrVulkanInstanceCreateInfoKHR* createInfo,
                                            VkInstance* vulkanInstance,
                                            VkResult* vulkanResult) override {
+            if (createInfo->type != XR_TYPE_VULKAN_INSTANCE_CREATE_INFO_KHR) {
+                return XR_ERROR_VALIDATION_FAILURE;
+            }
+
+            TraceLoggingWrite(g_traceProvider,
+                              "xrCreateVulkanInstanceKHR",
+                              TLPArg(instance, "Instance"),
+                              TLArg((int)createInfo->systemId, "SystemId"),
+                              TLArg((int)createInfo->createFlags, "CreateFlags"),
+                              TLPArg(createInfo->pfnGetInstanceProcAddr, "GetInstanceProcAddr"));
+
             uint32_t extensionNamesSize = 0;
             CHECK_XRCMD(
                 xrGetVulkanInstanceExtensionsKHR(instance, createInfo->systemId, 0, &extensionNamesSize, nullptr));
             std::vector<char> extensionNames(extensionNamesSize);
             CHECK_XRCMD(xrGetVulkanInstanceExtensionsKHR(
                 instance, createInfo->systemId, extensionNamesSize, &extensionNamesSize, &extensionNames[0]));
-            {
-                // Note: This cannot outlive the extensionNames above, since it's just a collection of views into that
-                // string!
-                std::vector<const char*> extensions = ParseExtensionString(&extensionNames[0]);
 
-                // Merge the runtime's request with the applications requests
-                for (uint32_t i = 0; i < createInfo->vulkanCreateInfo->enabledExtensionCount; ++i) {
-                    extensions.push_back(createInfo->vulkanCreateInfo->ppEnabledExtensionNames[i]);
-                }
+            // Note: This cannot outlive the extensionNames above, since it's just a collection of views into that
+            // string!
+            std::vector<const char*> extensions = ParseExtensionString(&extensionNames[0]);
 
-                VkInstanceCreateInfo instInfo = *createInfo->vulkanCreateInfo;
-                instInfo.enabledExtensionCount = (uint32_t)extensions.size();
-                instInfo.ppEnabledExtensionNames = extensions.empty() ? nullptr : extensions.data();
-
-                auto pfnCreateInstance =
-                    (PFN_vkCreateInstance)createInfo->pfnGetInstanceProcAddr(nullptr, "vkCreateInstance");
-                *vulkanResult = pfnCreateInstance(&instInfo, createInfo->vulkanAllocator, vulkanInstance);
+            // Merge the runtime's request with the applications requests
+            for (uint32_t i = 0; i < createInfo->vulkanCreateInfo->enabledExtensionCount; ++i) {
+                extensions.push_back(createInfo->vulkanCreateInfo->ppEnabledExtensionNames[i]);
             }
 
+            for (uint32_t i = 0; i < extensions.size(); i++) {
+                TraceLoggingWrite(g_traceProvider, "xrCreateVulkanInstanceKHR", TLArg(extensions[i], "Extension"));
+            }
+
+            VkInstanceCreateInfo instInfo = *createInfo->vulkanCreateInfo;
+            instInfo.enabledExtensionCount = (uint32_t)extensions.size();
+            instInfo.ppEnabledExtensionNames = extensions.empty() ? nullptr : extensions.data();
+
+            auto pfnCreateInstance =
+                (PFN_vkCreateInstance)createInfo->pfnGetInstanceProcAddr(nullptr, "vkCreateInstance");
+            *vulkanResult = pfnCreateInstance(&instInfo, createInfo->vulkanAllocator, vulkanInstance);
+
+            TraceLoggingWrite(g_traceProvider,
+                              "xrCreateVulkanInstanceKHR",
+                              TLPArg(*vulkanInstance, "VkInstance"),
+                              TLArg((int)*vulkanResult, "VkResult"));
+
             m_vkBootstrapInstance = *vulkanInstance;
+
             return XR_SUCCESS;
         }
 
@@ -258,6 +361,18 @@ namespace {
                                          const XrVulkanDeviceCreateInfoKHR* createInfo,
                                          VkDevice* vulkanDevice,
                                          VkResult* vulkanResult) override {
+            if (createInfo->type != XR_TYPE_VULKAN_DEVICE_CREATE_INFO_KHR) {
+                return XR_ERROR_VALIDATION_FAILURE;
+            }
+
+            TraceLoggingWrite(g_traceProvider,
+                              "XrVulkanDeviceCreateInfoKHR",
+                              TLPArg(instance, "Instance"),
+                              TLArg((int)createInfo->systemId, "SystemId"),
+                              TLArg((int)createInfo->createFlags, "CreateFlags"),
+                              TLPArg(createInfo->pfnGetInstanceProcAddr, "GetInstanceProcAddr"),
+                              TLPArg(createInfo->vulkanPhysicalDevice, "VkPhysicalDevice"));
+
             uint32_t deviceExtensionNamesSize = 0;
             CHECK_XRCMD(
                 xrGetVulkanDeviceExtensionsKHR(instance, createInfo->systemId, 0, &deviceExtensionNamesSize, nullptr));
@@ -267,35 +382,39 @@ namespace {
                                                        deviceExtensionNamesSize,
                                                        &deviceExtensionNamesSize,
                                                        &deviceExtensionNames[0]));
-            {
-                // Note: This cannot outlive the extensionNames above, since it's just a collection of views into that
-                // string!
-                std::vector<const char*> extensions = ParseExtensionString(&deviceExtensionNames[0]);
+            // Note: This cannot outlive the extensionNames above, since it's just a collection of views into that
+            // string!
+            std::vector<const char*> extensions = ParseExtensionString(&deviceExtensionNames[0]);
 
-                // Merge the runtime's request with the applications requests
-                for (uint32_t i = 0; i < createInfo->vulkanCreateInfo->enabledExtensionCount; ++i) {
-                    extensions.push_back(createInfo->vulkanCreateInfo->ppEnabledExtensionNames[i]);
-                }
-
-                VkPhysicalDeviceFeatures features = *createInfo->vulkanCreateInfo->pEnabledFeatures;
-
-                // Enable timeline semaphores.
-                VkPhysicalDeviceTimelineSemaphoreFeatures timelineSemaphoreFeatures{
-                    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES};
-                timelineSemaphoreFeatures.timelineSemaphore = true;
-
-                VkDeviceCreateInfo deviceInfo = *createInfo->vulkanCreateInfo;
-                timelineSemaphoreFeatures.pNext = (void*)deviceInfo.pNext;
-                deviceInfo.pNext = &timelineSemaphoreFeatures;
-                deviceInfo.pEnabledFeatures = &features;
-                deviceInfo.enabledExtensionCount = (uint32_t)extensions.size();
-                deviceInfo.ppEnabledExtensionNames = extensions.empty() ? nullptr : extensions.data();
-
-                auto pfnCreateDevice =
-                    (PFN_vkCreateDevice)createInfo->pfnGetInstanceProcAddr(m_vkBootstrapInstance, "vkCreateDevice");
-                *vulkanResult = pfnCreateDevice(
-                    m_vkBootstrapPhysicalDevice, &deviceInfo, createInfo->vulkanAllocator, vulkanDevice);
+            // Merge the runtime's request with the applications requests
+            for (uint32_t i = 0; i < createInfo->vulkanCreateInfo->enabledExtensionCount; ++i) {
+                extensions.push_back(createInfo->vulkanCreateInfo->ppEnabledExtensionNames[i]);
             }
+
+            for (uint32_t i = 0; i < extensions.size(); i++) {
+                TraceLoggingWrite(g_traceProvider, "xrCreateVulkanDeviceKHR", TLArg(extensions[i], "Extension"));
+            }
+
+            // Enable timeline semaphores.
+            VkPhysicalDeviceTimelineSemaphoreFeatures timelineSemaphoreFeatures{
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES};
+            timelineSemaphoreFeatures.timelineSemaphore = true;
+
+            VkDeviceCreateInfo deviceInfo = *createInfo->vulkanCreateInfo;
+            timelineSemaphoreFeatures.pNext = (void*)deviceInfo.pNext;
+            deviceInfo.pNext = &timelineSemaphoreFeatures;
+            deviceInfo.enabledExtensionCount = (uint32_t)extensions.size();
+            deviceInfo.ppEnabledExtensionNames = extensions.empty() ? nullptr : extensions.data();
+
+            auto pfnCreateDevice =
+                (PFN_vkCreateDevice)createInfo->pfnGetInstanceProcAddr(m_vkBootstrapInstance, "vkCreateDevice");
+            *vulkanResult =
+                pfnCreateDevice(m_vkBootstrapPhysicalDevice, &deviceInfo, createInfo->vulkanAllocator, vulkanDevice);
+
+            TraceLoggingWrite(g_traceProvider,
+                              "xrCreateVulkanDeviceKHR",
+                              TLPArg(*vulkanDevice, "VkDevice"),
+                              TLArg((int)*vulkanResult, "VkResult"));
 
             return XR_SUCCESS;
         }
@@ -305,14 +424,24 @@ namespace {
         XrResult xrGetVulkanGraphicsDevice2KHR(XrInstance instance,
                                                const XrVulkanGraphicsDeviceGetInfoKHR* getInfo,
                                                VkPhysicalDevice* vulkanPhysicalDevice) override {
-            if (getInfo->next != nullptr) {
-                return XR_ERROR_FEATURE_UNSUPPORTED;
+            if (getInfo->type != XR_TYPE_VULKAN_GRAPHICS_DEVICE_GET_INFO_KHR) {
+                return XR_ERROR_VALIDATION_FAILURE;
             }
+
+            TraceLoggingWrite(g_traceProvider,
+                              "xrGetVulkanGraphicsDevice2KHR",
+                              TLPArg(instance, "Instance"),
+                              TLArg((int)getInfo->systemId, "SystemId"),
+                              TLPArg(getInfo->vulkanInstance, "VkInstance"));
 
             CHECK_XRCMD(xrGetVulkanGraphicsDeviceKHR(
                 instance, getInfo->systemId, getInfo->vulkanInstance, vulkanPhysicalDevice));
 
+            TraceLoggingWrite(
+                g_traceProvider, "xrGetVulkanGraphicsDevice2KHR", TLPArg(*vulkanPhysicalDevice, "VkPhysicalDevice"));
+
             m_vkBootstrapPhysicalDevice = *vulkanPhysicalDevice;
+
             return XR_SUCCESS;
         }
 
@@ -320,8 +449,25 @@ namespace {
         XrResult xrGetVulkanGraphicsRequirementsKHR(XrInstance instance,
                                                     XrSystemId systemId,
                                                     XrGraphicsRequirementsVulkanKHR* graphicsRequirements) override {
+            if (graphicsRequirements->type != XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR) {
+                return XR_ERROR_VALIDATION_FAILURE;
+            }
+
+            TraceLoggingWrite(g_traceProvider,
+                              "xrGetVulkanGraphicsRequirementsKHR",
+                              TLPArg(instance, "Instance"),
+                              TLArg((int)systemId, "SystemId"));
+
             graphicsRequirements->minApiVersionSupported = XR_MAKE_VERSION(1, 0, 0);
             graphicsRequirements->maxApiVersionSupported = XR_MAKE_VERSION(2, 0, 0);
+
+            m_graphicsRequirementQueried = true;
+
+            TraceLoggingWrite(
+                g_traceProvider,
+                "xrGetVulkanGraphicsRequirementsKHR",
+                TLArg(xr::ToString(graphicsRequirements->minApiVersionSupported).c_str(), "MinApiVersionSupported"),
+                TLArg(xr::ToString(graphicsRequirements->maxApiVersionSupported).c_str(), "MaxApiVersionSupported"));
 
             return XR_SUCCESS;
         }
@@ -330,25 +476,34 @@ namespace {
         XrResult xrGetVulkanGraphicsRequirements2KHR(XrInstance instance,
                                                      XrSystemId systemId,
                                                      XrGraphicsRequirementsVulkanKHR* graphicsRequirements) override {
-            graphicsRequirements->minApiVersionSupported = XR_MAKE_VERSION(1, 0, 0);
-            graphicsRequirements->maxApiVersionSupported = XR_MAKE_VERSION(2, 0, 0);
-
-            return XR_SUCCESS;
+            return xrGetVulkanGraphicsRequirementsKHR(instance, systemId, graphicsRequirements);
         }
 
         XrResult xrEnumerateSwapchainFormats(XrSession session,
                                              uint32_t formatCapacityInput,
                                              uint32_t* formatCountOutput,
                                              int64_t* formats) override {
+            TraceLoggingWrite(g_traceProvider,
+                              "xrEnumerateSwapchainFormats",
+                              TLPArg(session, "Session"),
+                              TLArg(formatCapacityInput, "FormatCapacityInput"));
+
             const XrResult result =
                 OpenXrApi::xrEnumerateSwapchainFormats(session, formatCapacityInput, formatCountOutput, formats);
-            if (XR_SUCCEEDED(result) && isSessionHandled(session) && formatCapacityInput) {
-                // Translate supported formats to Vulkan formats.
-                for (uint32_t i = 0; i < *formatCountOutput; i++) {
-                    for (size_t j = 0; j < ARRAYSIZE(util::DxgiToVkFormat); j++) {
-                        if ((int64_t)util::DxgiToVkFormat[j].dxgi == formats[i]) {
-                            formats[i] = (int64_t)util::DxgiToVkFormat[j].vk;
-                            break;
+
+            if (XR_SUCCEEDED(result)) {
+                TraceLoggingWrite(
+                    g_traceProvider, "xrEnumerateSwapchainFormats", TLArg(*formatCountOutput, "FormatCountOutput"));
+                if (isSessionHandled(session) && formatCapacityInput) {
+                    // Translate supported formats to Vulkan formats.
+                    for (uint32_t i = 0; i < *formatCountOutput; i++) {
+                        for (size_t j = 0; j < ARRAYSIZE(util::DxgiToVkFormat); j++) {
+                            if ((int64_t)util::DxgiToVkFormat[j].dxgi == formats[i]) {
+                                formats[i] = (int64_t)util::DxgiToVkFormat[j].vk;
+                                TraceLoggingWrite(
+                                    g_traceProvider, "xrEnumerateSwapchainFormats", TLArg(formats[i], "Format"));
+                                break;
+                            }
                         }
                     }
                 }
@@ -360,6 +515,16 @@ namespace {
         XrResult xrCreateSession(XrInstance instance,
                                  const XrSessionCreateInfo* createInfo,
                                  XrSession* session) override {
+            if (createInfo->type != XR_TYPE_SESSION_CREATE_INFO) {
+                return XR_ERROR_VALIDATION_FAILURE;
+            }
+
+            TraceLoggingWrite(g_traceProvider,
+                              "xrCreateSession",
+                              TLPArg(instance, "Instance"),
+                              TLArg((int)createInfo->systemId, "SystemId"),
+                              TLArg(createInfo->createFlags, "CreateFlags"));
+
             XrGraphicsBindingD3D12KHR d3dBindings{XR_TYPE_GRAPHICS_BINDING_D3D12_KHR};
             Session newSession;
             bool handled = false;
@@ -372,6 +537,10 @@ namespace {
                     if (entry->type == XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR) {
                         const XrGraphicsBindingVulkanKHR* vkBindings =
                             reinterpret_cast<const XrGraphicsBindingVulkanKHR*>(entry);
+
+                        if (!m_graphicsRequirementQueried) {
+                            return XR_ERROR_GRAPHICS_REQUIREMENTS_CALL_MISSING;
+                        }
 
                         // Create D3D12 resources.
                         {
@@ -395,7 +564,9 @@ namespace {
                                                    std::back_inserter(adapterDescription),
                                                    [](wchar_t c) { return (char)c; });
 
-                                    // Log the adapter name to help debugging customer issues.
+                                    TraceLoggingWrite(g_traceProvider,
+                                                      "xrCreateSession",
+                                                      TLArg(adapterDescription.c_str(), "DeviceName"));
                                     Log("Using Direct3D 12 on adapter: %s\n", adapterDescription.c_str());
                                     break;
                                 }
@@ -489,10 +660,17 @@ namespace {
                     vkDestroySemaphore(newSession.vkDevice, newSession.vkTimelineSemaphore, nullptr);
                 }
             }
+
+            if (XR_SUCCEEDED(result)) {
+                TraceLoggingWrite(g_traceProvider, "xrCreateSession", TLPArg(*session, "Session"));
+            }
+
             return result;
         }
 
         XrResult xrDestroySession(XrSession session) override {
+            TraceLoggingWrite(g_traceProvider, "xrDestroySession", TLPArg(session, "Session"));
+
             const XrResult result = OpenXrApi::xrDestroySession(session);
             if (XR_SUCCEEDED(result) && isSessionHandled(session)) {
                 auto& sessionState = m_sessions[session];
@@ -507,6 +685,23 @@ namespace {
         XrResult xrCreateSwapchain(XrSession session,
                                    const XrSwapchainCreateInfo* createInfo,
                                    XrSwapchain* swapchain) override {
+            if (createInfo->type != XR_TYPE_SWAPCHAIN_CREATE_INFO) {
+                return XR_ERROR_VALIDATION_FAILURE;
+            }
+
+            TraceLoggingWrite(g_traceProvider,
+                              "xrCreateSwapchain",
+                              TLPArg(session, "Session"),
+                              TLArg(createInfo->arraySize, "ArraySize"),
+                              TLArg(createInfo->width, "Width"),
+                              TLArg(createInfo->height, "Height"),
+                              TLArg(createInfo->createFlags, "CreateFlags"),
+                              TLArg(createInfo->format, "Format"),
+                              TLArg(createInfo->faceCount, "FaceCount"),
+                              TLArg(createInfo->mipCount, "MipCount"),
+                              TLArg(createInfo->sampleCount, "SampleCount"),
+                              TLArg(createInfo->usageFlags, "UsageFlags"));
+
             XrSwapchainCreateInfo chainCreateInfo = *createInfo;
             Swapchain newSwapchain;
             bool handled = false;
@@ -542,16 +737,22 @@ namespace {
             }
 
             const XrResult result = OpenXrApi::xrCreateSwapchain(session, &chainCreateInfo, swapchain);
-            if (XR_SUCCEEDED(result) && handled) {
-                // On success, record the state.
-                newSwapchain.xrSwapchain = *swapchain;
-                m_swapchains.insert_or_assign(*swapchain, newSwapchain);
+            if (XR_SUCCEEDED(result)) {
+                if (handled) {
+                    // On success, record the state.
+                    newSwapchain.xrSwapchain = *swapchain;
+                    m_swapchains.insert_or_assign(*swapchain, newSwapchain);
+                }
+
+                TraceLoggingWrite(g_traceProvider, "xrCreateSwapchain", TLPArg(*swapchain, "Swapchain"));
             }
 
             return result;
         }
 
         XrResult xrDestroySwapchain(XrSwapchain swapchain) override {
+            TraceLoggingWrite(g_traceProvider, "xrDestroySwapchain", TLPArg(swapchain, "Swapchain"));
+
             const XrResult result = OpenXrApi::xrDestroySwapchain(swapchain);
             if (XR_SUCCEEDED(result) && isSwapchainHandled(swapchain)) {
                 auto& swapchainState = m_swapchains[swapchain];
@@ -567,8 +768,17 @@ namespace {
                                             uint32_t imageCapacityInput,
                                             uint32_t* imageCountOutput,
                                             XrSwapchainImageBaseHeader* images) override {
+            TraceLoggingWrite(g_traceProvider,
+                              "xrEnumerateSwapchainImages",
+                              TLPArg(swapchain, "Swapchain"),
+                              TLArg(imageCapacityInput, "ImageCapacityInput"));
+
             if (!isSwapchainHandled(swapchain) || imageCapacityInput == 0) {
-                return OpenXrApi::xrEnumerateSwapchainImages(swapchain, imageCapacityInput, imageCountOutput, images);
+                const XrResult result =
+                    OpenXrApi::xrEnumerateSwapchainImages(swapchain, imageCapacityInput, imageCountOutput, images);
+                TraceLoggingWrite(
+                    g_traceProvider, "xrEnumerateSwapchainImages", TLArg(*imageCountOutput, "ImageCountOutput"));
+                return result;
             }
 
             // Enumerate the actual D3D swapchain images.
@@ -579,6 +789,9 @@ namespace {
                                                       imageCountOutput,
                                                       reinterpret_cast<XrSwapchainImageBaseHeader*>(d3dImages.data()));
             if (XR_SUCCEEDED(result)) {
+                TraceLoggingWrite(
+                    g_traceProvider, "xrEnumerateSwapchainImages", TLArg(*imageCountOutput, "ImageCountOutput"));
+
                 auto& swapchainState = m_swapchains[swapchain];
                 auto& sessionState = m_sessions[swapchainState.xrSession];
 
@@ -615,6 +828,16 @@ namespace {
                     // Dump the runtime texture descriptor.
                     if (i == 0) {
                         const auto& desc = d3dImages[0].texture->GetDesc();
+                        TraceLoggingWrite(g_traceProvider,
+                                          "xrEnumerateSwapchainImages",
+                                          TLArg("D3D12", "Api"),
+                                          TLArg(desc.Width, "Width"),
+                                          TLArg(desc.Height, "Height"),
+                                          TLArg(desc.DepthOrArraySize, "ArraySize"),
+                                          TLArg(desc.MipLevels, "MipCount"),
+                                          TLArg(desc.SampleDesc.Count, "SampleCount"),
+                                          TLArg((int)desc.Format, "Format"),
+                                          TLArg((int)desc.Flags, "Flags"));
                         Log("Swapchain image descriptor:\n");
                         Log("  w=%u h=%u arraySize=%u format=%u\n",
                             desc.Width,
@@ -716,6 +939,11 @@ namespace {
                     CHECK_VKCMD(vkBindImageMemory2KHR(sessionState.vkDevice, 1, &bindImageInfo));
 
                     vkImages[i].image = image;
+
+                    TraceLoggingWrite(g_traceProvider,
+                                      "xrEnumerateSwapchainImages",
+                                      TLArg("Vulkan", "Api"),
+                                      TLPArg(vkImages[i].image, "Texture"));
                 }
             }
 
@@ -723,12 +951,23 @@ namespace {
         }
 
         XrResult xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo) override {
+            if (frameEndInfo->type != XR_TYPE_FRAME_END_INFO) {
+                return XR_ERROR_VALIDATION_FAILURE;
+            }
+
+            TraceLoggingWrite(g_traceProvider,
+                              "xrEndFrame",
+                              TLPArg(session, "Session"),
+                              TLArg(frameEndInfo->displayTime, "DisplayTime"),
+                              TLArg(xr::ToCString(frameEndInfo->environmentBlendMode), "EnvironmentBlendMode"));
+
             if (isSessionHandled(session)) {
                 auto& sessionState = m_sessions[session];
 
                 // Signal the timeline semaphore from the Vulkan queue, and wait for it on the D3D12 queue. This
                 // effectively serializes the app work between Vulkan and D3D12.
                 sessionState.fenceValue++;
+                TraceLoggingWrite(g_traceProvider, "xrEndFrame_Sync", TLArg(sessionState.fenceValue, "FenceValue"));
                 VkTimelineSemaphoreSubmitInfo timelineInfo{VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO};
                 timelineInfo.signalSemaphoreValueCount = 1;
                 timelineInfo.pSignalSemaphoreValues = &sessionState.fenceValue;
@@ -780,6 +1019,7 @@ namespace {
         }
 
         XrSystemId m_systemId{XR_NULL_SYSTEM_ID};
+        bool m_graphicsRequirementQueried{false};
         XrGraphicsRequirementsD3D12KHR m_d3d12Requirements;
 
         std::map<XrSession, Session> m_sessions;

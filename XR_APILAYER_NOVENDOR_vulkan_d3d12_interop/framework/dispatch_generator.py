@@ -164,7 +164,7 @@ namespace LAYER_NAMESPACE
                     generated += f'''
 	XrResult {cur_cmd.name}({parameters_list})
 	{{
-		DebugLog("--> {cur_cmd.name}\\n");
+		TraceLoggingWrite(g_traceProvider, "{cur_cmd.name}");
 
 		XrResult result;
 		try
@@ -173,11 +173,15 @@ namespace LAYER_NAMESPACE
 		}}
 		catch (std::exception exc)
 		{{
-			Log("%s\\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "{cur_cmd.name}_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("{cur_cmd.name}: %s\\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}}
 
-		DebugLog("<-- {cur_cmd.name} %d\\n", result);
+		TraceLoggingWrite(g_traceProvider, "{cur_cmd.name}_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {{
+			ErrorLog("{cur_cmd.name} failed with %s\\n", xr::ToCString(result));
+		}}
 
 		return result;
 	}}
@@ -186,7 +190,7 @@ namespace LAYER_NAMESPACE
                     generated += f'''
 	void {cur_cmd.name}({parameters_list})
 	{{
-		DebugLog("--> {cur_cmd.name}\\n");
+		TraceLoggingWrite(g_traceProvider, "{cur_cmd.name}");
 
 		try
 		{{
@@ -194,10 +198,11 @@ namespace LAYER_NAMESPACE
 		}}
 		catch (std::runtime_error exc)
 		{{
-			Log("%s\\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "{cur_cmd.name}_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("{cur_cmd.name}: %s\\n", exc.what());
 		}}
 
-		DebugLog("<-- {cur_cmd.name} %d\\n");
+		TraceLoggingWrite(g_traceProvider, "{cur_cmd.name}_Complete");
 	}}
 '''
                 

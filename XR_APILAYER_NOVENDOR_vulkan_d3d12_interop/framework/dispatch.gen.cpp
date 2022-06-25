@@ -41,7 +41,7 @@ namespace LAYER_NAMESPACE
 
 	XrResult xrGetSystem(XrInstance instance, const XrSystemGetInfo* getInfo, XrSystemId* systemId)
 	{
-		DebugLog("--> xrGetSystem\n");
+		TraceLoggingWrite(g_traceProvider, "xrGetSystem");
 
 		XrResult result;
 		try
@@ -50,18 +50,22 @@ namespace LAYER_NAMESPACE
 		}
 		catch (std::exception exc)
 		{
-			Log("%s\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "xrGetSystem_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrGetSystem: %s\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}
 
-		DebugLog("<-- xrGetSystem %d\n", result);
+		TraceLoggingWrite(g_traceProvider, "xrGetSystem_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrGetSystem failed with %s\n", xr::ToCString(result));
+		}
 
 		return result;
 	}
 
 	XrResult xrCreateSession(XrInstance instance, const XrSessionCreateInfo* createInfo, XrSession* session)
 	{
-		DebugLog("--> xrCreateSession\n");
+		TraceLoggingWrite(g_traceProvider, "xrCreateSession");
 
 		XrResult result;
 		try
@@ -70,18 +74,22 @@ namespace LAYER_NAMESPACE
 		}
 		catch (std::exception exc)
 		{
-			Log("%s\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "xrCreateSession_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrCreateSession: %s\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}
 
-		DebugLog("<-- xrCreateSession %d\n", result);
+		TraceLoggingWrite(g_traceProvider, "xrCreateSession_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrCreateSession failed with %s\n", xr::ToCString(result));
+		}
 
 		return result;
 	}
 
 	XrResult xrDestroySession(XrSession session)
 	{
-		DebugLog("--> xrDestroySession\n");
+		TraceLoggingWrite(g_traceProvider, "xrDestroySession");
 
 		XrResult result;
 		try
@@ -90,18 +98,22 @@ namespace LAYER_NAMESPACE
 		}
 		catch (std::exception exc)
 		{
-			Log("%s\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "xrDestroySession_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrDestroySession: %s\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}
 
-		DebugLog("<-- xrDestroySession %d\n", result);
+		TraceLoggingWrite(g_traceProvider, "xrDestroySession_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrDestroySession failed with %s\n", xr::ToCString(result));
+		}
 
 		return result;
 	}
 
 	XrResult xrEnumerateSwapchainFormats(XrSession session, uint32_t formatCapacityInput, uint32_t* formatCountOutput, int64_t* formats)
 	{
-		DebugLog("--> xrEnumerateSwapchainFormats\n");
+		TraceLoggingWrite(g_traceProvider, "xrEnumerateSwapchainFormats");
 
 		XrResult result;
 		try
@@ -110,18 +122,22 @@ namespace LAYER_NAMESPACE
 		}
 		catch (std::exception exc)
 		{
-			Log("%s\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "xrEnumerateSwapchainFormats_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrEnumerateSwapchainFormats: %s\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}
 
-		DebugLog("<-- xrEnumerateSwapchainFormats %d\n", result);
+		TraceLoggingWrite(g_traceProvider, "xrEnumerateSwapchainFormats_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrEnumerateSwapchainFormats failed with %s\n", xr::ToCString(result));
+		}
 
 		return result;
 	}
 
 	XrResult xrCreateSwapchain(XrSession session, const XrSwapchainCreateInfo* createInfo, XrSwapchain* swapchain)
 	{
-		DebugLog("--> xrCreateSwapchain\n");
+		TraceLoggingWrite(g_traceProvider, "xrCreateSwapchain");
 
 		XrResult result;
 		try
@@ -130,18 +146,22 @@ namespace LAYER_NAMESPACE
 		}
 		catch (std::exception exc)
 		{
-			Log("%s\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "xrCreateSwapchain_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrCreateSwapchain: %s\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}
 
-		DebugLog("<-- xrCreateSwapchain %d\n", result);
+		TraceLoggingWrite(g_traceProvider, "xrCreateSwapchain_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrCreateSwapchain failed with %s\n", xr::ToCString(result));
+		}
 
 		return result;
 	}
 
 	XrResult xrDestroySwapchain(XrSwapchain swapchain)
 	{
-		DebugLog("--> xrDestroySwapchain\n");
+		TraceLoggingWrite(g_traceProvider, "xrDestroySwapchain");
 
 		XrResult result;
 		try
@@ -150,18 +170,22 @@ namespace LAYER_NAMESPACE
 		}
 		catch (std::exception exc)
 		{
-			Log("%s\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "xrDestroySwapchain_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrDestroySwapchain: %s\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}
 
-		DebugLog("<-- xrDestroySwapchain %d\n", result);
+		TraceLoggingWrite(g_traceProvider, "xrDestroySwapchain_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrDestroySwapchain failed with %s\n", xr::ToCString(result));
+		}
 
 		return result;
 	}
 
 	XrResult xrEnumerateSwapchainImages(XrSwapchain swapchain, uint32_t imageCapacityInput, uint32_t* imageCountOutput, XrSwapchainImageBaseHeader* images)
 	{
-		DebugLog("--> xrEnumerateSwapchainImages\n");
+		TraceLoggingWrite(g_traceProvider, "xrEnumerateSwapchainImages");
 
 		XrResult result;
 		try
@@ -170,18 +194,22 @@ namespace LAYER_NAMESPACE
 		}
 		catch (std::exception exc)
 		{
-			Log("%s\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "xrEnumerateSwapchainImages_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrEnumerateSwapchainImages: %s\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}
 
-		DebugLog("<-- xrEnumerateSwapchainImages %d\n", result);
+		TraceLoggingWrite(g_traceProvider, "xrEnumerateSwapchainImages_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrEnumerateSwapchainImages failed with %s\n", xr::ToCString(result));
+		}
 
 		return result;
 	}
 
 	XrResult xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo)
 	{
-		DebugLog("--> xrEndFrame\n");
+		TraceLoggingWrite(g_traceProvider, "xrEndFrame");
 
 		XrResult result;
 		try
@@ -190,18 +218,22 @@ namespace LAYER_NAMESPACE
 		}
 		catch (std::exception exc)
 		{
-			Log("%s\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "xrEndFrame_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrEndFrame: %s\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}
 
-		DebugLog("<-- xrEndFrame %d\n", result);
+		TraceLoggingWrite(g_traceProvider, "xrEndFrame_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrEndFrame failed with %s\n", xr::ToCString(result));
+		}
 
 		return result;
 	}
 
 	XrResult xrGetVulkanInstanceExtensionsKHR(XrInstance instance, XrSystemId systemId, uint32_t bufferCapacityInput, uint32_t* bufferCountOutput, char* buffer)
 	{
-		DebugLog("--> xrGetVulkanInstanceExtensionsKHR\n");
+		TraceLoggingWrite(g_traceProvider, "xrGetVulkanInstanceExtensionsKHR");
 
 		XrResult result;
 		try
@@ -210,18 +242,22 @@ namespace LAYER_NAMESPACE
 		}
 		catch (std::exception exc)
 		{
-			Log("%s\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "xrGetVulkanInstanceExtensionsKHR_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrGetVulkanInstanceExtensionsKHR: %s\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}
 
-		DebugLog("<-- xrGetVulkanInstanceExtensionsKHR %d\n", result);
+		TraceLoggingWrite(g_traceProvider, "xrGetVulkanInstanceExtensionsKHR_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrGetVulkanInstanceExtensionsKHR failed with %s\n", xr::ToCString(result));
+		}
 
 		return result;
 	}
 
 	XrResult xrGetVulkanDeviceExtensionsKHR(XrInstance instance, XrSystemId systemId, uint32_t bufferCapacityInput, uint32_t* bufferCountOutput, char* buffer)
 	{
-		DebugLog("--> xrGetVulkanDeviceExtensionsKHR\n");
+		TraceLoggingWrite(g_traceProvider, "xrGetVulkanDeviceExtensionsKHR");
 
 		XrResult result;
 		try
@@ -230,18 +266,22 @@ namespace LAYER_NAMESPACE
 		}
 		catch (std::exception exc)
 		{
-			Log("%s\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "xrGetVulkanDeviceExtensionsKHR_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrGetVulkanDeviceExtensionsKHR: %s\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}
 
-		DebugLog("<-- xrGetVulkanDeviceExtensionsKHR %d\n", result);
+		TraceLoggingWrite(g_traceProvider, "xrGetVulkanDeviceExtensionsKHR_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrGetVulkanDeviceExtensionsKHR failed with %s\n", xr::ToCString(result));
+		}
 
 		return result;
 	}
 
 	XrResult xrGetVulkanGraphicsDeviceKHR(XrInstance instance, XrSystemId systemId, VkInstance vkInstance, VkPhysicalDevice* vkPhysicalDevice)
 	{
-		DebugLog("--> xrGetVulkanGraphicsDeviceKHR\n");
+		TraceLoggingWrite(g_traceProvider, "xrGetVulkanGraphicsDeviceKHR");
 
 		XrResult result;
 		try
@@ -250,18 +290,22 @@ namespace LAYER_NAMESPACE
 		}
 		catch (std::exception exc)
 		{
-			Log("%s\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "xrGetVulkanGraphicsDeviceKHR_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrGetVulkanGraphicsDeviceKHR: %s\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}
 
-		DebugLog("<-- xrGetVulkanGraphicsDeviceKHR %d\n", result);
+		TraceLoggingWrite(g_traceProvider, "xrGetVulkanGraphicsDeviceKHR_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrGetVulkanGraphicsDeviceKHR failed with %s\n", xr::ToCString(result));
+		}
 
 		return result;
 	}
 
 	XrResult xrGetVulkanGraphicsRequirementsKHR(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsVulkanKHR* graphicsRequirements)
 	{
-		DebugLog("--> xrGetVulkanGraphicsRequirementsKHR\n");
+		TraceLoggingWrite(g_traceProvider, "xrGetVulkanGraphicsRequirementsKHR");
 
 		XrResult result;
 		try
@@ -270,18 +314,22 @@ namespace LAYER_NAMESPACE
 		}
 		catch (std::exception exc)
 		{
-			Log("%s\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "xrGetVulkanGraphicsRequirementsKHR_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrGetVulkanGraphicsRequirementsKHR: %s\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}
 
-		DebugLog("<-- xrGetVulkanGraphicsRequirementsKHR %d\n", result);
+		TraceLoggingWrite(g_traceProvider, "xrGetVulkanGraphicsRequirementsKHR_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrGetVulkanGraphicsRequirementsKHR failed with %s\n", xr::ToCString(result));
+		}
 
 		return result;
 	}
 
 	XrResult xrCreateVulkanInstanceKHR(XrInstance instance, const XrVulkanInstanceCreateInfoKHR* createInfo, VkInstance* vulkanInstance, VkResult* vulkanResult)
 	{
-		DebugLog("--> xrCreateVulkanInstanceKHR\n");
+		TraceLoggingWrite(g_traceProvider, "xrCreateVulkanInstanceKHR");
 
 		XrResult result;
 		try
@@ -290,18 +338,22 @@ namespace LAYER_NAMESPACE
 		}
 		catch (std::exception exc)
 		{
-			Log("%s\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "xrCreateVulkanInstanceKHR_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrCreateVulkanInstanceKHR: %s\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}
 
-		DebugLog("<-- xrCreateVulkanInstanceKHR %d\n", result);
+		TraceLoggingWrite(g_traceProvider, "xrCreateVulkanInstanceKHR_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrCreateVulkanInstanceKHR failed with %s\n", xr::ToCString(result));
+		}
 
 		return result;
 	}
 
 	XrResult xrCreateVulkanDeviceKHR(XrInstance instance, const XrVulkanDeviceCreateInfoKHR* createInfo, VkDevice* vulkanDevice, VkResult* vulkanResult)
 	{
-		DebugLog("--> xrCreateVulkanDeviceKHR\n");
+		TraceLoggingWrite(g_traceProvider, "xrCreateVulkanDeviceKHR");
 
 		XrResult result;
 		try
@@ -310,18 +362,22 @@ namespace LAYER_NAMESPACE
 		}
 		catch (std::exception exc)
 		{
-			Log("%s\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "xrCreateVulkanDeviceKHR_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrCreateVulkanDeviceKHR: %s\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}
 
-		DebugLog("<-- xrCreateVulkanDeviceKHR %d\n", result);
+		TraceLoggingWrite(g_traceProvider, "xrCreateVulkanDeviceKHR_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrCreateVulkanDeviceKHR failed with %s\n", xr::ToCString(result));
+		}
 
 		return result;
 	}
 
 	XrResult xrGetVulkanGraphicsDevice2KHR(XrInstance instance, const XrVulkanGraphicsDeviceGetInfoKHR* getInfo, VkPhysicalDevice* vulkanPhysicalDevice)
 	{
-		DebugLog("--> xrGetVulkanGraphicsDevice2KHR\n");
+		TraceLoggingWrite(g_traceProvider, "xrGetVulkanGraphicsDevice2KHR");
 
 		XrResult result;
 		try
@@ -330,18 +386,22 @@ namespace LAYER_NAMESPACE
 		}
 		catch (std::exception exc)
 		{
-			Log("%s\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "xrGetVulkanGraphicsDevice2KHR_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrGetVulkanGraphicsDevice2KHR: %s\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}
 
-		DebugLog("<-- xrGetVulkanGraphicsDevice2KHR %d\n", result);
+		TraceLoggingWrite(g_traceProvider, "xrGetVulkanGraphicsDevice2KHR_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrGetVulkanGraphicsDevice2KHR failed with %s\n", xr::ToCString(result));
+		}
 
 		return result;
 	}
 
 	XrResult xrGetVulkanGraphicsRequirements2KHR(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsVulkanKHR* graphicsRequirements)
 	{
-		DebugLog("--> xrGetVulkanGraphicsRequirements2KHR\n");
+		TraceLoggingWrite(g_traceProvider, "xrGetVulkanGraphicsRequirements2KHR");
 
 		XrResult result;
 		try
@@ -350,11 +410,15 @@ namespace LAYER_NAMESPACE
 		}
 		catch (std::exception exc)
 		{
-			Log("%s\n", exc.what());
+			TraceLoggingWrite(g_traceProvider, "xrGetVulkanGraphicsRequirements2KHR_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrGetVulkanGraphicsRequirements2KHR: %s\n", exc.what());
 			result = XR_ERROR_RUNTIME_FAILURE;
 		}
 
-		DebugLog("<-- xrGetVulkanGraphicsRequirements2KHR %d\n", result);
+		TraceLoggingWrite(g_traceProvider, "xrGetVulkanGraphicsRequirements2KHR_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrGetVulkanGraphicsRequirements2KHR failed with %s\n", xr::ToCString(result));
+		}
 
 		return result;
 	}

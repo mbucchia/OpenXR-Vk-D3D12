@@ -39,6 +39,7 @@ namespace LAYER_NAMESPACE {
     XrResult xrCreateApiLayerInstance(const XrInstanceCreateInfo* const instanceCreateInfo,
                                       const struct XrApiLayerCreateInfo* const apiLayerInfo,
                                       XrInstance* const instance) {
+        TraceLoggingWrite(g_traceProvider, "xrCreateApiLayerInstance");
         DebugLog("--> xrCreateApiLayerInstance\n");
 
         if (!apiLayerInfo || apiLayerInfo->structType != XR_LOADER_INTERFACE_STRUCT_API_LAYER_CREATE_INFO ||
@@ -49,7 +50,7 @@ namespace LAYER_NAMESPACE {
             apiLayerInfo->nextInfo->structSize != sizeof(XrApiLayerNextInfo) ||
             apiLayerInfo->nextInfo->layerName != LayerName || !apiLayerInfo->nextInfo->nextGetInstanceProcAddr ||
             !apiLayerInfo->nextInfo->nextCreateApiLayerInstance) {
-            Log("xrCreateApiLayerInstance validation failed\n");
+            ErrorLog("xrCreateApiLayerInstance validation failed\n");
             return XR_ERROR_INITIALIZATION_FAILED;
         }
 
@@ -57,6 +58,7 @@ namespace LAYER_NAMESPACE {
         {
             auto info = apiLayerInfo->nextInfo;
             while (info) {
+                TraceLoggingWrite(g_traceProvider, "xrCreateApiLayerInstance", TLArg(info->layerName, "LayerName"));
                 Log("Using layer: %s\n", info->layerName);
                 info = info->next;
             }
@@ -67,16 +69,19 @@ namespace LAYER_NAMESPACE {
         std::vector<const char*> newEnabledExtensionNames;
         bool needUseD3D12 = false;
         for (uint32_t i = 0; i < chainInstanceCreateInfo.enabledExtensionCount; i++) {
+            TraceLoggingWrite(g_traceProvider,
+                              "xrCreateApiLayerInstance",
+                              TLArg(chainInstanceCreateInfo.enabledExtensionNames[i], "ExtensionName"));
             Log("Requested extension: %s\n", chainInstanceCreateInfo.enabledExtensionNames[i]);
             const std::string_view ext(chainInstanceCreateInfo.enabledExtensionNames[i]);
-            if (ext != "XR_KHR_vulkan_enable" && ext != "XR_KHR_vulkan_enable2") {
+            if (ext != XR_KHR_VULKAN_ENABLE_EXTENSION_NAME && ext != XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME) {
                 newEnabledExtensionNames.push_back(ext.data());
             } else {
                 needUseD3D12 = true;
             }
         }
         if (needUseD3D12) {
-            newEnabledExtensionNames.push_back("XR_KHR_D3D12_enable");
+            newEnabledExtensionNames.push_back(XR_KHR_D3D12_ENABLE_EXTENSION_NAME);
         } else {
             Log("Vulkan is not requested for the instance\n");
         }
@@ -97,7 +102,8 @@ namespace LAYER_NAMESPACE {
             try {
                 result = LAYER_NAMESPACE::GetInstance()->xrCreateInstance(instanceCreateInfo);
             } catch (std::runtime_error exc) {
-                Log("%s\n", exc.what());
+                TraceLoggingWrite(g_traceProvider, "xrCreateInstance_Error", TLArg(exc.what(), "Error"));
+                ErrorLog("xrCreateInstance: %s\\n", exc.what());
                 result = XR_ERROR_RUNTIME_FAILURE;
             }
 
@@ -111,6 +117,11 @@ namespace LAYER_NAMESPACE {
             }
         }
 
+        TraceLoggingWrite(g_traceProvider, "xrCreateApiLayerInstance_Result", TLArg(xr::ToCString(result), "Result"));
+        if (XR_FAILED(result)) {
+            ErrorLog("xrCreateApiLayerInstance failed with %s\\n", xr::ToCString(result));
+        }
+
         DebugLog("<-- xrCreateApiLayerInstance %d\n", result);
 
         return result;
@@ -118,7 +129,7 @@ namespace LAYER_NAMESPACE {
 
     // Handle cleanup of the layer's singleton.
     XrResult xrDestroyInstance(XrInstance instance) {
-        DebugLog("--> xrDestroyInstance\n");
+        TraceLoggingWrite(g_traceProvider, "xrDestroyInstance");
 
         XrResult result;
         try {
@@ -127,23 +138,35 @@ namespace LAYER_NAMESPACE {
                 LAYER_NAMESPACE::ResetInstance();
             }
         } catch (std::runtime_error exc) {
-            Log("%s\n", exc.what());
+            TraceLoggingWrite(g_traceProvider, "xrDestroyInstance_Error", TLArg(exc.what(), "Error"));
+            ErrorLog("xrDestroyInstance: %s\\n", exc.what());
             result = XR_ERROR_RUNTIME_FAILURE;
         }
 
-        DebugLog("<-- xrDestroyInstance %d\n", result);
+        TraceLoggingWrite(g_traceProvider, "xrDestroyInstance_Result", TLArg(xr::ToCString(result), "Result"));
+        if (XR_FAILED(result)) {
+            ErrorLog("xrDestroyInstance failed with %s\\n", xr::ToCString(result));
+        }
 
         return result;
     }
 
     // Forward the xrGetInstanceProcAddr() call to the dispatcher.
     XrResult xrGetInstanceProcAddr(XrInstance instance, const char* name, PFN_xrVoidFunction* function) {
+        TraceLoggingWrite(g_traceProvider, "xrGetInstanceProcAddr");
+
+        XrResult result;
         try {
-            return LAYER_NAMESPACE::GetInstance()->xrGetInstanceProcAddr(instance, name, function);
+            result = LAYER_NAMESPACE::GetInstance()->xrGetInstanceProcAddr(instance, name, function);
         } catch (std::runtime_error exc) {
-            Log("%s\n", exc.what());
-            return XR_ERROR_RUNTIME_FAILURE;
+            TraceLoggingWrite(g_traceProvider, "xrGetInstanceProcAddr_Error", TLArg(exc.what(), "Error"));
+            ErrorLog("xrGetInstanceProcAddr: %s\\n", exc.what());
+            result = XR_ERROR_RUNTIME_FAILURE;
         }
+
+        TraceLoggingWrite(g_traceProvider, "xrGetInstanceProcAddr_Result", TLArg(xr::ToCString(result), "Result"));
+
+        return result;
     }
 
 } // namespace LAYER_NAMESPACE

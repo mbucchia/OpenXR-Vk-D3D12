@@ -46,6 +46,8 @@ using namespace std::chrono_literals;
 #include <unknwn.h>
 #include <wrl.h>
 #include <wil/resource.h>
+#include <traceloggingactivity.h>
+#include <traceloggingprovider.h>
 
 using Microsoft::WRL::ComPtr;
 
