@@ -14,7 +14,8 @@ For troubleshooting, the log file can be found at `%LocalAppData%\XR_APILAYER_NO
 
 - This has only been tested with Windows Mixed Reality.
 - This has only been tested with NVIDIA.
-- This has been tested with the HelloXR sample app from Khronos, and with Unity 2021.
+- This has been tested with the HelloXR sample app from Khronos, Unity 2021 and Godot 4.
+- It is compatible with [OpenXR Toolkit](https://mbucchia.github.io/OpenXR-Toolkit/).
 
 ## How does it work?
 
