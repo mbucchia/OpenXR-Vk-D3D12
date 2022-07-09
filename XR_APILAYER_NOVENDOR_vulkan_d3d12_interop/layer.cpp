@@ -1005,46 +1005,49 @@ namespace {
                 auto& swapchainState = m_swapchains[swapchain];
                 auto& sessionState = m_sessions[swapchainState.xrSession];
 
-                // Transition the image to the layout expected by the application.
-                VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
-                barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-                if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT) {
-                    barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                if (swapchainState.createInfo.usageFlags &
+                    (XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)) {
+                    // Transition the image to the layout expected by the application.
+                    VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+                    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                    if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT) {
+                        barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                    }
+                    if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+                        barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                    }
+                    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                    barrier.image = swapchainState.vkImage[*index];
+                    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                    barrier.subresourceRange.baseMipLevel = 0;
+                    barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+                    barrier.subresourceRange.baseArrayLayer = 0;
+                    barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+                    VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+                    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+                    CHECK_VKCMD(m_vkDispatch.vkBeginCommandBuffer(swapchainState.vkCmdBuffer, &beginInfo));
+
+                    m_vkDispatch.vkCmdPipelineBarrier(swapchainState.vkCmdBuffer,
+                                                      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                                      VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+                                                      0,
+                                                      0,
+                                                      (VkMemoryBarrier*)nullptr,
+                                                      0,
+                                                      (VkBufferMemoryBarrier*)nullptr,
+                                                      1,
+                                                      &barrier);
+
+                    m_vkDispatch.vkEndCommandBuffer(swapchainState.vkCmdBuffer);
+
+                    VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+                    submitInfo.commandBufferCount = 1;
+                    submitInfo.pCommandBuffers = &swapchainState.vkCmdBuffer;
+                    CHECK_VKCMD(m_vkDispatch.vkQueueSubmit(sessionState.vkQueue, 1, &submitInfo, VK_NULL_HANDLE));
                 }
-                if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
-                    barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-                }
-                barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                barrier.image = swapchainState.vkImage[*index];
-                barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                barrier.subresourceRange.baseMipLevel = 0;
-                barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-                barrier.subresourceRange.baseArrayLayer = 0;
-                barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
-                VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-                beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-                CHECK_VKCMD(m_vkDispatch.vkBeginCommandBuffer(swapchainState.vkCmdBuffer, &beginInfo));
-
-                m_vkDispatch.vkCmdPipelineBarrier(swapchainState.vkCmdBuffer,
-                                                  VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                                  VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-                                                  0,
-                                                  0,
-                                                  (VkMemoryBarrier*)nullptr,
-                                                  0,
-                                                  (VkBufferMemoryBarrier*)nullptr,
-                                                  1,
-                                                  &barrier);
-
-                m_vkDispatch.vkEndCommandBuffer(swapchainState.vkCmdBuffer);
-
-                VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-                submitInfo.commandBufferCount = 1;
-                submitInfo.pCommandBuffers = &swapchainState.vkCmdBuffer;
-                CHECK_VKCMD(m_vkDispatch.vkQueueSubmit(sessionState.vkQueue, 1, &submitInfo, VK_NULL_HANDLE));
             }
 
             return result;
