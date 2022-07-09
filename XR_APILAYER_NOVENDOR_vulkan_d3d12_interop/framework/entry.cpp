@@ -32,9 +32,6 @@
 #endif
 
 namespace LAYER_NAMESPACE {
-    // The path where the DLL loads config files and stores logs.
-    std::filesystem::path dllHome;
-
     // The path to store logs & others.
     std::filesystem::path localAppData;
 
