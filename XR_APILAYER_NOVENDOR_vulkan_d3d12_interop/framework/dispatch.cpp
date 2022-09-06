@@ -74,7 +74,8 @@ namespace LAYER_NAMESPACE {
                               TLArg(chainInstanceCreateInfo.enabledExtensionNames[i], "ExtensionName"));
             Log("Requested extension: %s\n", chainInstanceCreateInfo.enabledExtensionNames[i]);
             const std::string_view ext(chainInstanceCreateInfo.enabledExtensionNames[i]);
-            if (ext != XR_KHR_VULKAN_ENABLE_EXTENSION_NAME && ext != XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME) {
+            if (ext != XR_KHR_VULKAN_ENABLE_EXTENSION_NAME && ext != XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME &&
+                ext != XR_KHR_OPENGL_ENABLE_EXTENSION_NAME) {
                 newEnabledExtensionNames.push_back(ext.data());
             } else {
                 needUseD3D12 = true;
@@ -83,7 +84,7 @@ namespace LAYER_NAMESPACE {
         if (needUseD3D12) {
             newEnabledExtensionNames.push_back(XR_KHR_D3D12_ENABLE_EXTENSION_NAME);
         } else {
-            Log("Vulkan is not requested for the instance\n");
+            Log("Vulkan/OpenGL is not requested for the instance\n");
         }
         chainInstanceCreateInfo.enabledExtensionNames = newEnabledExtensionNames.data();
         chainInstanceCreateInfo.enabledExtensionCount = (uint32_t)newEnabledExtensionNames.size();

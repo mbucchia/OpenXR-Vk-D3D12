@@ -382,7 +382,7 @@ if __name__ == '__main__':
 
     conventions = OpenXRConventions()
     featuresPat = 'XR_VERSION_1_0'
-    extensionsPat = makeREstring(['XR_KHR_vulkan_enable', 'XR_KHR_vulkan_enable2'])
+    extensionsPat = makeREstring(['XR_KHR_vulkan_enable', 'XR_KHR_vulkan_enable2', 'XR_KHR_opengl_enable'])
 
     registry.setGenerator(DispatchGenCppOutputGenerator(diagFile=None))
     registry.apiGen(AutomaticSourceGeneratorOptions(

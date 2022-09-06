@@ -56,12 +56,16 @@ using Microsoft::WRL::ComPtr;
 #include <dxgi.h>
 #define VK_USE_PLATFORM_WIN32_KHR
 #include <vulkan/vulkan.h>
+#include <GL/GL.h>
+#include <GL/glext.h>
+#include <GL/wglext.h>
 
 // OpenXR + Windows-specific definitions.
 #define XR_NO_PROTOTYPES
 #define XR_USE_PLATFORM_WIN32
 #define XR_USE_GRAPHICS_API_D3D12
 #define XR_USE_GRAPHICS_API_VULKAN
+#define XR_USE_GRAPHICS_API_OPENGL
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 
@@ -71,6 +75,7 @@ using Microsoft::WRL::ComPtr;
 // OpenXR utilities.
 #include <XrError.h>
 #include <XrMath.h>
+#include <XrStereoView.h>
 
 // FMT formatter.
 #include <fmt/format.h>

@@ -231,6 +231,30 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
+	XrResult xrBeginSession(XrSession session, const XrSessionBeginInfo* beginInfo)
+	{
+		TraceLoggingWrite(g_traceProvider, "xrBeginSession");
+
+		XrResult result;
+		try
+		{
+			result = LAYER_NAMESPACE::GetInstance()->xrBeginSession(session, beginInfo);
+		}
+		catch (std::exception exc)
+		{
+			TraceLoggingWrite(g_traceProvider, "xrBeginSession_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrBeginSession: %s\n", exc.what());
+			result = XR_ERROR_RUNTIME_FAILURE;
+		}
+
+		TraceLoggingWrite(g_traceProvider, "xrBeginSession_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrBeginSession failed with %s\n", xr::ToCString(result));
+		}
+
+		return result;
+	}
+
 	XrResult xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrEndFrame");
@@ -250,6 +274,30 @@ namespace LAYER_NAMESPACE
 		TraceLoggingWrite(g_traceProvider, "xrEndFrame_Result", TLArg(xr::ToCString(result), "Result"));
 		if (XR_FAILED(result)) {
 			ErrorLog("xrEndFrame failed with %s\n", xr::ToCString(result));
+		}
+
+		return result;
+	}
+
+	XrResult xrGetOpenGLGraphicsRequirementsKHR(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsOpenGLKHR* graphicsRequirements)
+	{
+		TraceLoggingWrite(g_traceProvider, "xrGetOpenGLGraphicsRequirementsKHR");
+
+		XrResult result;
+		try
+		{
+			result = LAYER_NAMESPACE::GetInstance()->xrGetOpenGLGraphicsRequirementsKHR(instance, systemId, graphicsRequirements);
+		}
+		catch (std::exception exc)
+		{
+			TraceLoggingWrite(g_traceProvider, "xrGetOpenGLGraphicsRequirementsKHR_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrGetOpenGLGraphicsRequirementsKHR: %s\n", exc.what());
+			result = XR_ERROR_RUNTIME_FAILURE;
+		}
+
+		TraceLoggingWrite(g_traceProvider, "xrGetOpenGLGraphicsRequirementsKHR_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrGetOpenGLGraphicsRequirementsKHR failed with %s\n", xr::ToCString(result));
 		}
 
 		return result;
@@ -500,10 +548,21 @@ namespace LAYER_NAMESPACE
 			m_xrAcquireSwapchainImage = reinterpret_cast<PFN_xrAcquireSwapchainImage>(*function);
 			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrAcquireSwapchainImage);
 		}
+		else if (apiName == "xrBeginSession")
+		{
+			m_xrBeginSession = reinterpret_cast<PFN_xrBeginSession>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrBeginSession);
+		}
 		else if (apiName == "xrEndFrame")
 		{
 			m_xrEndFrame = reinterpret_cast<PFN_xrEndFrame>(*function);
 			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrEndFrame);
+		}
+		else if (apiName == "xrGetOpenGLGraphicsRequirementsKHR")
+		{
+			m_xrGetOpenGLGraphicsRequirementsKHR = reinterpret_cast<PFN_xrGetOpenGLGraphicsRequirementsKHR>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrGetOpenGLGraphicsRequirementsKHR);
+			result = XR_SUCCESS;
 		}
 		else if (apiName == "xrGetVulkanInstanceExtensionsKHR")
 		{
@@ -568,6 +627,10 @@ namespace LAYER_NAMESPACE
 		if (XR_FAILED(m_xrGetInstanceProcAddr(m_instance, "xrGetSystemProperties", reinterpret_cast<PFN_xrVoidFunction*>(&m_xrGetSystemProperties))))
 		{
 			throw new std::runtime_error("Failed to resolve xrGetSystemProperties");
+		}
+		if (XR_FAILED(m_xrGetInstanceProcAddr(m_instance, "xrGetViewConfigurationProperties", reinterpret_cast<PFN_xrVoidFunction*>(&m_xrGetViewConfigurationProperties))))
+		{
+			throw new std::runtime_error("Failed to resolve xrGetViewConfigurationProperties");
 		}
 		m_applicationName = createInfo->applicationInfo.applicationName;
 		return XR_SUCCESS;

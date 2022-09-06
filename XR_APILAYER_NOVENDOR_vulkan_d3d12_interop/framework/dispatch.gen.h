@@ -116,6 +116,14 @@ namespace LAYER_NAMESPACE
 		PFN_xrDestroySession m_xrDestroySession{ nullptr };
 
 	public:
+		virtual XrResult xrGetViewConfigurationProperties(XrInstance instance, XrSystemId systemId, XrViewConfigurationType viewConfigurationType, XrViewConfigurationProperties* configurationProperties)
+		{
+			return m_xrGetViewConfigurationProperties(instance, systemId, viewConfigurationType, configurationProperties);
+		}
+	private:
+		PFN_xrGetViewConfigurationProperties m_xrGetViewConfigurationProperties{ nullptr };
+
+	public:
 		virtual XrResult xrEnumerateSwapchainFormats(XrSession session, uint32_t formatCapacityInput, uint32_t* formatCountOutput, int64_t* formats)
 		{
 			return m_xrEnumerateSwapchainFormats(session, formatCapacityInput, formatCountOutput, formats);
@@ -156,12 +164,28 @@ namespace LAYER_NAMESPACE
 		PFN_xrAcquireSwapchainImage m_xrAcquireSwapchainImage{ nullptr };
 
 	public:
+		virtual XrResult xrBeginSession(XrSession session, const XrSessionBeginInfo* beginInfo)
+		{
+			return m_xrBeginSession(session, beginInfo);
+		}
+	private:
+		PFN_xrBeginSession m_xrBeginSession{ nullptr };
+
+	public:
 		virtual XrResult xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo)
 		{
 			return m_xrEndFrame(session, frameEndInfo);
 		}
 	private:
 		PFN_xrEndFrame m_xrEndFrame{ nullptr };
+
+	public:
+		virtual XrResult xrGetOpenGLGraphicsRequirementsKHR(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsOpenGLKHR* graphicsRequirements)
+		{
+			return m_xrGetOpenGLGraphicsRequirementsKHR(instance, systemId, graphicsRequirements);
+		}
+	private:
+		PFN_xrGetOpenGLGraphicsRequirementsKHR m_xrGetOpenGLGraphicsRequirementsKHR{ nullptr };
 
 	public:
 		virtual XrResult xrGetVulkanInstanceExtensionsKHR(XrInstance instance, XrSystemId systemId, uint32_t bufferCapacityInput, uint32_t* bufferCountOutput, char* buffer)
