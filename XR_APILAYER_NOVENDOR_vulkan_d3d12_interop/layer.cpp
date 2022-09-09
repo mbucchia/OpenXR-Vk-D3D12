@@ -111,25 +111,32 @@ namespace {
             VkCommandBuffer vkCmdBuffer{VK_NULL_HANDLE};
         };
 
-        struct GlContextSwitch {
-            GlContextSwitch(const Session& sessionState) {
-                m_glDC = wglGetCurrentDC();
-                m_glRC = wglGetCurrentContext();
+        class GlContextSwitch {
+          public:
+            GlContextSwitch(const Session& sessionState) : m_valid(sessionState.glDC != 0) {
+                if (m_valid) {
+                    m_glDC = wglGetCurrentDC();
+                    m_glRC = wglGetCurrentContext();
 
-                wglMakeCurrent(sessionState.glDC, sessionState.glRC);
+                    wglMakeCurrent(sessionState.glDC, sessionState.glRC);
 
-                // Reset error codes.
-                (void)glGetError();
+                    // Reset error codes.
+                    (void)glGetError();
+                }
             }
 
             ~GlContextSwitch() noexcept(false) {
-                const auto lastError = glGetError();
+                if (m_valid) {
+                    const auto lastError = glGetError();
 
-                wglMakeCurrent(m_glDC, m_glRC);
+                    wglMakeCurrent(m_glDC, m_glRC);
 
-                CHECK_MSG(lastError == GL_NO_ERROR, fmt::format("OpenGL error: 0x{:x}", lastError));
+                    CHECK_MSG(lastError == GL_NO_ERROR, fmt::format("OpenGL error: 0x{:x}", lastError));
+                }
             }
 
+          private:
+            const bool m_valid;
             HDC m_glDC;
             HGLRC m_glRC;
         };
