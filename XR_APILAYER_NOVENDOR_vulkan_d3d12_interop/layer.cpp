@@ -210,7 +210,8 @@ namespace {
                               TLArg(xr::ToCString(getInfo->formFactor), "FormFactor"));
 
             const XrResult result = OpenXrApi::xrGetSystem(instance, getInfo, systemId);
-            if (XR_SUCCEEDED(result) && getInfo->formFactor == XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY) {
+            if (XR_SUCCEEDED(result) && (m_isVulkanEnabled || m_isOpenGLEnabled) &&
+                getInfo->formFactor == XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY) {
                 if (*systemId != m_systemId) {
                     // Get the graphics device requirement for this system (if D3D12 is enabled).
                     PFN_xrGetD3D12GraphicsRequirementsKHR xrGetD3D12GraphicsRequirementsKHR = nullptr;
