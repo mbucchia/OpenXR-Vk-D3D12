@@ -90,6 +90,10 @@ namespace {
             GLuint glSemaphore{0};
             UINT64 fenceValue{0};
 
+            // Workaround: the AMD driver does not seem to like closing the handle for the shared fence when using
+            // OpenGL. We keep it alive for the whole session.
+            wil::shared_handle fenceHandleForAMDWorkaround;
+
             // Vulkan: for layout transitions.
             VkCommandPool vkCmdPool{VK_NULL_HANDLE};
         };
@@ -835,12 +839,16 @@ namespace {
                             m_glDispatch.glGenSemaphoresEXT(1, &newSession.glSemaphore);
 
                             // Import the D3D fence into the semaphore.
-                            wil::unique_handle fenceHandle = nullptr;
-                            CHECK_HRCMD(newSession.d3dDevice->CreateSharedHandle(
-                                newSession.d3dFence.Get(), nullptr, GENERIC_ALL, nullptr, fenceHandle.put()));
+                            CHECK_HRCMD(
+                                newSession.d3dDevice->CreateSharedHandle(newSession.d3dFence.Get(),
+                                                                         nullptr,
+                                                                         GENERIC_ALL,
+                                                                         nullptr,
+                                                                         newSession.fenceHandleForAMDWorkaround.put()));
 
-                            m_glDispatch.glImportSemaphoreWin32HandleEXT(
-                                newSession.glSemaphore, GL_HANDLE_TYPE_D3D12_FENCE_EXT, fenceHandle.get());
+                            m_glDispatch.glImportSemaphoreWin32HandleEXT(newSession.glSemaphore,
+                                                                         GL_HANDLE_TYPE_D3D12_FENCE_EXT,
+                                                                         newSession.fenceHandleForAMDWorkaround.get());
 
                             newSession.api = GfxApi::OpenGL;
                         }
@@ -1423,7 +1431,6 @@ namespace {
                     m_glDispatch.glSemaphoreParameterui64vEXT(
                         sessionState.glSemaphore, GL_D3D12_FENCE_VALUE_EXT, &sessionState.fenceValue);
 
-                    // TODO: Do we need layout transitions to D3D12?
                     m_glDispatch.glSignalSemaphoreEXT(sessionState.glSemaphore, 0, nullptr, 0, nullptr, nullptr);
 
                     glFlush();
