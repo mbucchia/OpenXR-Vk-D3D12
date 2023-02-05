@@ -1574,6 +1574,8 @@ namespace {
 
             if (sessionState.api == GfxApi::Vulkan) {
                 m_vkDispatch.vkDeviceWaitIdle(sessionState.vkDevice);
+            } else {
+                glFinish();
             }
 
             for (auto it = m_swapchains.begin(); it != m_swapchains.end();) {
@@ -1607,6 +1609,8 @@ namespace {
 
             if (sessionState.api == GfxApi::Vulkan) {
                 m_vkDispatch.vkDeviceWaitIdle(sessionState.vkDevice);
+            } else {
+                glFinish();
             }
 
             for (auto& image : swapchainState.vkImage) {
