@@ -206,6 +206,8 @@ namespace {
                 return XR_ERROR_VALIDATION_FAILURE;
             }
 
+            std::unique_lock lock(m_globalLock);
+
             TraceLoggingWrite(g_traceProvider,
                               "xrGetSystem",
                               TLPArg(instance, "Instance"),
@@ -395,6 +397,8 @@ namespace {
                 return XR_ERROR_VALIDATION_FAILURE;
             }
 
+            std::unique_lock lock(m_globalLock);
+
             TraceLoggingWrite(g_traceProvider,
                               "xrCreateVulkanInstanceKHR",
                               TLPArg(instance, "Instance"),
@@ -457,6 +461,8 @@ namespace {
             if (createInfo->type != XR_TYPE_VULKAN_DEVICE_CREATE_INFO_KHR) {
                 return XR_ERROR_VALIDATION_FAILURE;
             }
+
+            std::unique_lock lock(m_globalLock);
 
             TraceLoggingWrite(g_traceProvider,
                               "XrVulkanDeviceCreateInfoKHR",
@@ -532,6 +538,8 @@ namespace {
                 return XR_ERROR_VALIDATION_FAILURE;
             }
 
+            std::unique_lock lock(m_globalLock);
+
             TraceLoggingWrite(g_traceProvider,
                               "xrGetVulkanGraphicsDevice2KHR",
                               TLPArg(instance, "Instance"),
@@ -564,6 +572,8 @@ namespace {
             if (graphicsRequirements->type != XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR) {
                 return XR_ERROR_VALIDATION_FAILURE;
             }
+
+            std::unique_lock lock(m_globalLock);
 
             TraceLoggingWrite(g_traceProvider,
                               "xrGetVulkanGraphicsRequirementsKHR",
@@ -609,6 +619,8 @@ namespace {
                 return XR_ERROR_VALIDATION_FAILURE;
             }
 
+            std::unique_lock lock(m_globalLock);
+
             TraceLoggingWrite(g_traceProvider,
                               "xrGetOpenGLGraphicsRequirementsKHR",
                               TLPArg(instance, "Instance"),
@@ -641,6 +653,8 @@ namespace {
                                              uint32_t formatCapacityInput,
                                              uint32_t* formatCountOutput,
                                              int64_t* formats) override {
+            std::unique_lock lock(m_globalLock);
+
             TraceLoggingWrite(g_traceProvider,
                               "xrEnumerateSwapchainFormats",
                               TLPArg(session, "Session"),
@@ -705,6 +719,8 @@ namespace {
             if (createInfo->type != XR_TYPE_SESSION_CREATE_INFO) {
                 return XR_ERROR_VALIDATION_FAILURE;
             }
+
+            std::unique_lock lock(m_globalLock);
 
             TraceLoggingWrite(g_traceProvider,
                               "xrCreateSession",
@@ -954,6 +970,8 @@ namespace {
         }
 
         XrResult xrDestroySession(XrSession session) override {
+            std::unique_lock lock(m_globalLock);
+
             TraceLoggingWrite(g_traceProvider, "xrDestroySession", TLPArg(session, "Session"));
 
             const XrResult result = OpenXrApi::xrDestroySession(session);
@@ -971,6 +989,8 @@ namespace {
             if (beginInfo->type != XR_TYPE_SESSION_BEGIN_INFO) {
                 return XR_ERROR_VALIDATION_FAILURE;
             }
+
+            std::unique_lock lock(m_globalLock);
 
             TraceLoggingWrite(
                 g_traceProvider,
@@ -1003,6 +1023,8 @@ namespace {
             if (createInfo->type != XR_TYPE_SWAPCHAIN_CREATE_INFO) {
                 return XR_ERROR_VALIDATION_FAILURE;
             }
+
+            std::unique_lock lock(m_globalLock);
 
             TraceLoggingWrite(g_traceProvider,
                               "xrCreateSwapchain",
@@ -1073,6 +1095,8 @@ namespace {
         }
 
         XrResult xrDestroySwapchain(XrSwapchain swapchain) override {
+            std::unique_lock lock(m_globalLock);
+
             TraceLoggingWrite(g_traceProvider, "xrDestroySwapchain", TLPArg(swapchain, "Swapchain"));
 
             const XrResult result = OpenXrApi::xrDestroySwapchain(swapchain);
@@ -1090,6 +1114,8 @@ namespace {
                                             uint32_t imageCapacityInput,
                                             uint32_t* imageCountOutput,
                                             XrSwapchainImageBaseHeader* images) override {
+            std::unique_lock lock(m_globalLock);
+
             TraceLoggingWrite(g_traceProvider,
                               "xrEnumerateSwapchainImages",
                               TLPArg(swapchain, "Swapchain"),
@@ -1424,6 +1450,8 @@ namespace {
                 return XR_ERROR_VALIDATION_FAILURE;
             }
 
+            std::unique_lock lock(m_globalLock);
+
             TraceLoggingWrite(g_traceProvider,
                               "xrEndFrame",
                               TLPArg(session, "Session"),
@@ -1651,6 +1679,10 @@ namespace {
 
         std::map<XrSession, Session> m_sessions;
         std::map<XrSwapchain, Swapchain> m_swapchains;
+
+        // We can afford to use a giant lock given that all our overlay functions are typically in control path (with
+        // the exception of xrEndFrame()).
+        std::mutex m_globalLock;
 
         // State for XR_KHR_vulkan_enable2 emulation.
         VkInstance m_vkBootstrapInstance{VK_NULL_HANDLE};
