@@ -123,7 +123,8 @@ namespace {
                     wglMakeCurrent(sessionState.glDC, sessionState.glRC);
 
                     // Reset error codes.
-                    (void)glGetError();
+                    while (glGetError() != GL_NO_ERROR)
+                        ;
                 }
             }
 
