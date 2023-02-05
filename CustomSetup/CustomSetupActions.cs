@@ -18,14 +18,35 @@ namespace SetupCustomActions
         protected override void OnAfterInstall(IDictionary savedState)
         {
             var installPath = Path.GetDirectoryName(base.Context.Parameters["AssemblyPath"]);
-            var jsonName = "XR_APILAYER_NOVENDOR_vulkan_d3d12_interop.json";
-            var jsonPath = installPath + "\\" + jsonName;
 
             // We want to add our layer at the very beginning, so that any other layer like the OpenXR Toolkit layer is following us.
             // We delete all entries, create our own, and recreate all entries.
 
             Microsoft.Win32.RegistryKey key;
-            key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey("SOFTWARE\\Khronos\\OpenXR\\1\\ApiLayers\\Implicit");
+            {
+                key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey("SOFTWARE\\Khronos\\OpenXR\\1\\ApiLayers\\Implicit");
+                var jsonName = "XR_APILAYER_NOVENDOR_vulkan_d3d12_interop.json";
+                var jsonPath = installPath + "\\" + jsonName;
+
+                ReOrderApiLayers(key, jsonName, jsonPath);
+
+                key.Close();
+            }
+            {
+                key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey("SOFTWARE\\WOW6432Node\\Khronos\\OpenXR\\1\\ApiLayers\\Implicit");
+                var jsonName = "XR_APILAYER_NOVENDOR_vulkan_d3d12_interop-32.json";
+                var jsonPath = installPath + "\\" + jsonName;
+
+                ReOrderApiLayers(key, jsonName, jsonPath);
+
+                key.Close();
+            }
+
+            base.OnAfterInstall(savedState);
+        }
+
+        private void ReOrderApiLayers(Microsoft.Win32.RegistryKey key, string jsonName, string jsonPath)
+        {
             var existingValues = key.GetValueNames();
             var entriesValues = new Dictionary<string, object>();
             foreach (var value in existingValues)
@@ -45,10 +66,6 @@ namespace SetupCustomActions
 
                 key.SetValue(value, entriesValues[value]);
             }
-
-            key.Close();
-
-            base.OnAfterInstall(savedState);
         }
     }
 }

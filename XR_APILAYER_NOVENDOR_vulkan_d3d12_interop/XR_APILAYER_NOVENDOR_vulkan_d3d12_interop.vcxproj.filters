@@ -62,5 +62,6 @@
       <Filter>Framework</Filter>
     </None>
     <None Include="packages.config" />
+    <None Include="XR_APILAYER_NOVENDOR_vulkan_d3d12_interop-32.json" />
   </ItemGroup>
 </Project>

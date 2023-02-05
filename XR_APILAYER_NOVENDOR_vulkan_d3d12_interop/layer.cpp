@@ -210,7 +210,7 @@ namespace {
 
             TraceLoggingWrite(g_traceProvider,
                               "xrGetSystem",
-                              TLPArg(instance, "Instance"),
+                              TLXArg(instance, "Instance"),
                               TLArg(xr::ToCString(getInfo->formFactor), "FormFactor"));
 
             const XrResult result = OpenXrApi::xrGetSystem(instance, getInfo, systemId);
@@ -263,7 +263,7 @@ namespace {
 
             TraceLoggingWrite(g_traceProvider,
                               "xrGetVulkanInstanceExtensionsKHR",
-                              TLPArg(instance, "Instance"),
+                              TLXArg(instance, "Instance"),
                               TLArg((int)systemId, "SystemId"),
                               TLArg(bufferCapacityInput, "BufferCapacityInput"));
 
@@ -305,7 +305,7 @@ namespace {
 
             TraceLoggingWrite(g_traceProvider,
                               "xrGetVulkanDeviceExtensionsKHR",
-                              TLPArg(instance, "Instance"),
+                              TLXArg(instance, "Instance"),
                               TLArg((int)systemId, "SystemId"),
                               TLArg(bufferCapacityInput, "BufferCapacityInput"));
 
@@ -340,7 +340,7 @@ namespace {
                                               VkPhysicalDevice* vkPhysicalDevice) override {
             TraceLoggingWrite(g_traceProvider,
                               "xrGetVulkanGraphicsDeviceKHR",
-                              TLPArg(instance, "Instance"),
+                              TLXArg(instance, "Instance"),
                               TLArg((int)systemId, "SystemId"),
                               TLPArg(vkInstance, "VkInstance"));
 
@@ -401,7 +401,7 @@ namespace {
 
             TraceLoggingWrite(g_traceProvider,
                               "xrCreateVulkanInstanceKHR",
-                              TLPArg(instance, "Instance"),
+                              TLXArg(instance, "Instance"),
                               TLArg((int)createInfo->systemId, "SystemId"),
                               TLArg((int)createInfo->createFlags, "CreateFlags"),
                               TLPArg(createInfo->pfnGetInstanceProcAddr, "GetInstanceProcAddr"));
@@ -466,7 +466,7 @@ namespace {
 
             TraceLoggingWrite(g_traceProvider,
                               "XrVulkanDeviceCreateInfoKHR",
-                              TLPArg(instance, "Instance"),
+                              TLXArg(instance, "Instance"),
                               TLArg((int)createInfo->systemId, "SystemId"),
                               TLArg((int)createInfo->createFlags, "CreateFlags"),
                               TLPArg(createInfo->pfnGetInstanceProcAddr, "GetInstanceProcAddr"),
@@ -542,7 +542,7 @@ namespace {
 
             TraceLoggingWrite(g_traceProvider,
                               "xrGetVulkanGraphicsDevice2KHR",
-                              TLPArg(instance, "Instance"),
+                              TLXArg(instance, "Instance"),
                               TLArg((int)getInfo->systemId, "SystemId"),
                               TLPArg(getInfo->vulkanInstance, "VkInstance"));
 
@@ -577,7 +577,7 @@ namespace {
 
             TraceLoggingWrite(g_traceProvider,
                               "xrGetVulkanGraphicsRequirementsKHR",
-                              TLPArg(instance, "Instance"),
+                              TLXArg(instance, "Instance"),
                               TLArg((int)systemId, "SystemId"));
 
             if (!m_isVulkanEnabled) {
@@ -623,7 +623,7 @@ namespace {
 
             TraceLoggingWrite(g_traceProvider,
                               "xrGetOpenGLGraphicsRequirementsKHR",
-                              TLPArg(instance, "Instance"),
+                              TLXArg(instance, "Instance"),
                               TLArg((int)systemId, "SystemId"));
 
             if (!m_isOpenGLEnabled) {
@@ -657,7 +657,7 @@ namespace {
 
             TraceLoggingWrite(g_traceProvider,
                               "xrEnumerateSwapchainFormats",
-                              TLPArg(session, "Session"),
+                              TLXArg(session, "Session"),
                               TLArg(formatCapacityInput, "FormatCapacityInput"));
 
             const XrResult result =
@@ -724,7 +724,7 @@ namespace {
 
             TraceLoggingWrite(g_traceProvider,
                               "xrCreateSession",
-                              TLPArg(instance, "Instance"),
+                              TLXArg(instance, "Instance"),
                               TLArg((int)createInfo->systemId, "SystemId"),
                               TLArg(createInfo->createFlags, "CreateFlags"));
 
@@ -963,7 +963,7 @@ namespace {
             }
 
             if (XR_SUCCEEDED(result)) {
-                TraceLoggingWrite(g_traceProvider, "xrCreateSession", TLPArg(*session, "Session"));
+                TraceLoggingWrite(g_traceProvider, "xrCreateSession", TLXArg(*session, "Session"));
             }
 
             return result;
@@ -972,7 +972,7 @@ namespace {
         XrResult xrDestroySession(XrSession session) override {
             std::unique_lock lock(m_globalLock);
 
-            TraceLoggingWrite(g_traceProvider, "xrDestroySession", TLPArg(session, "Session"));
+            TraceLoggingWrite(g_traceProvider, "xrDestroySession", TLXArg(session, "Session"));
 
             const XrResult result = OpenXrApi::xrDestroySession(session);
             if (XR_SUCCEEDED(result) && isSessionHandled(session)) {
@@ -995,7 +995,7 @@ namespace {
             TraceLoggingWrite(
                 g_traceProvider,
                 "xrBeginSession",
-                TLPArg(session, "Session"),
+                TLXArg(session, "Session"),
                 TLArg(xr::ToCString(beginInfo->primaryViewConfigurationType), "PrimaryViewConfigurationType"));
 
             const XrResult result = OpenXrApi::xrBeginSession(session, beginInfo);
@@ -1028,7 +1028,7 @@ namespace {
 
             TraceLoggingWrite(g_traceProvider,
                               "xrCreateSwapchain",
-                              TLPArg(session, "Session"),
+                              TLXArg(session, "Session"),
                               TLArg(createInfo->arraySize, "ArraySize"),
                               TLArg(createInfo->width, "Width"),
                               TLArg(createInfo->height, "Height"),
@@ -1089,7 +1089,7 @@ namespace {
                 m_swapchains.insert_or_assign(*swapchain, newSwapchain);
             }
 
-            TraceLoggingWrite(g_traceProvider, "xrCreateSwapchain", TLPArg(*swapchain, "Swapchain"));
+            TraceLoggingWrite(g_traceProvider, "xrCreateSwapchain", TLXArg(*swapchain, "Swapchain"));
 
             return result;
         }
@@ -1097,7 +1097,7 @@ namespace {
         XrResult xrDestroySwapchain(XrSwapchain swapchain) override {
             std::unique_lock lock(m_globalLock);
 
-            TraceLoggingWrite(g_traceProvider, "xrDestroySwapchain", TLPArg(swapchain, "Swapchain"));
+            TraceLoggingWrite(g_traceProvider, "xrDestroySwapchain", TLXArg(swapchain, "Swapchain"));
 
             const XrResult result = OpenXrApi::xrDestroySwapchain(swapchain);
             if (XR_SUCCEEDED(result) && isSwapchainHandled(swapchain)) {
@@ -1118,7 +1118,7 @@ namespace {
 
             TraceLoggingWrite(g_traceProvider,
                               "xrEnumerateSwapchainImages",
-                              TLPArg(swapchain, "Swapchain"),
+                              TLXArg(swapchain, "Swapchain"),
                               TLArg(imageCapacityInput, "ImageCapacityInput"));
 
             if (!isSwapchainHandled(swapchain) || imageCapacityInput == 0) {
@@ -1417,7 +1417,7 @@ namespace {
                         TraceLoggingWrite(g_traceProvider,
                                           "xrEnumerateSwapchainImages",
                                           TLArg("Vulkan", "Api"),
-                                          TLPArg(vkImages[i].image, "Texture"));
+                                          TLXArg(vkImages[i].image, "Texture"));
                     } else {
                         XrSwapchainImageOpenGLKHR* glImages = reinterpret_cast<XrSwapchainImageOpenGLKHR*>(images);
                         glImages[i].image = swapchainState.glImage[i];
@@ -1454,7 +1454,7 @@ namespace {
 
             TraceLoggingWrite(g_traceProvider,
                               "xrEndFrame",
-                              TLPArg(session, "Session"),
+                              TLXArg(session, "Session"),
                               TLArg(frameEndInfo->displayTime, "DisplayTime"),
                               TLArg(xr::ToCString(frameEndInfo->environmentBlendMode), "EnvironmentBlendMode"));
 
