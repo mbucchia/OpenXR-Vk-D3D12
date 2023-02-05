@@ -96,6 +96,7 @@ namespace {
 
             // Vulkan: for layout transitions.
             VkCommandPool vkCmdPool{VK_NULL_HANDLE};
+            VkCommandBuffer vkCmdBuffer{VK_NULL_HANDLE};
         };
 
         struct Swapchain {
@@ -110,9 +111,6 @@ namespace {
             std::vector<VkImage> vkImage;
             std::vector<GLuint> glMemory;
             std::vector<GLuint> glImage;
-
-            // Vulkan: for layout transitions.
-            VkCommandBuffer vkCmdBuffer{VK_NULL_HANDLE};
         };
 
         class GlContextSwitch {
@@ -843,11 +841,20 @@ namespace {
                             CHECK_VKCMD(m_vkDispatch.vkImportSemaphoreWin32HandleKHR(newSession.vkDevice,
                                                                                      &semaphoreImportInfo));
 
+                            // Create a command buffer for transitioning the layout in xrCreateSwapchain().
                             VkCommandPoolCreateInfo poolCreateInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
                             poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
                             poolCreateInfo.queueFamilyIndex = vkBindings->queueFamilyIndex;
                             CHECK_VKCMD(m_vkDispatch.vkCreateCommandPool(
                                 newSession.vkDevice, &poolCreateInfo, m_vkAllocator, &newSession.vkCmdPool));
+
+                            VkCommandBufferAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+                            allocateInfo.commandPool = newSession.vkCmdPool;
+                            allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+                            allocateInfo.commandBufferCount = 1;
+
+                            CHECK_VKCMD(m_vkDispatch.vkAllocateCommandBuffers(
+                                newSession.vkDevice, &allocateInfo, &newSession.vkCmdBuffer));
 
                             newSession.api = GfxApi::Vulkan;
                         } else {
@@ -920,6 +927,10 @@ namespace {
                     m_sessions.insert_or_assign(*session, newSession);
                 } else {
                     // Cleanup on error.
+                    if (newSession.vkCmdBuffer != VK_NULL_HANDLE) {
+                        m_vkDispatch.vkFreeCommandBuffers(
+                            newSession.vkDevice, newSession.vkCmdPool, 1, &newSession.vkCmdBuffer);
+                    }
                     if (newSession.vkCmdPool != VK_NULL_HANDLE) {
                         m_vkDispatch.vkDestroyCommandPool(newSession.vkDevice, newSession.vkCmdPool, m_vkAllocator);
                     }
@@ -1044,37 +1055,16 @@ namespace {
                 newSwapchain.xrSession = session;
                 newSwapchain.createInfo = *createInfo;
 
-                if (sessionState.api == GfxApi::Vulkan) {
-                    // Create a command buffer for transitioning the layout in xrAcquireSwapchainImage().
-                    VkCommandBufferAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-                    allocateInfo.commandPool = sessionState.vkCmdPool;
-                    allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-                    allocateInfo.commandBufferCount = 1;
-
-                    CHECK_VKCMD(m_vkDispatch.vkAllocateCommandBuffers(
-                        sessionState.vkDevice, &allocateInfo, &newSwapchain.vkCmdBuffer));
-                }
-
                 // The rest will be filled in by xrEnumerateSwapchainImages().
 
                 handled = true;
             }
 
             const XrResult result = OpenXrApi::xrCreateSwapchain(session, &chainCreateInfo, swapchain);
-            if (handled) {
-                if (XR_SUCCEEDED(result)) {
-                    // On success, record the state.
-                    newSwapchain.xrSwapchain = *swapchain;
-                    m_swapchains.insert_or_assign(*swapchain, newSwapchain);
-                } else {
-                    auto& sessionState = m_sessions[session];
-
-                    // Cleanup on error.
-                    if (newSwapchain.vkCmdBuffer != VK_NULL_HANDLE) {
-                        m_vkDispatch.vkFreeCommandBuffers(
-                            sessionState.vkDevice, sessionState.vkCmdPool, 1, &newSwapchain.vkCmdBuffer);
-                    }
-                }
+            if (XR_SUCCEEDED(result) && handled) {
+                // On success, record the state.
+                newSwapchain.xrSwapchain = *swapchain;
+                m_swapchains.insert_or_assign(*swapchain, newSwapchain);
             }
 
             TraceLoggingWrite(g_traceProvider, "xrCreateSwapchain", TLPArg(*swapchain, "Swapchain"));
@@ -1148,6 +1138,19 @@ namespace {
                     CHECK_VKCMD(VK_ERROR_UNKNOWN);
                     return 0u;
                 };
+
+                // Start a command list to transition images.
+                if (isVulkan &&
+                    (swapchainState.createInfo.usageFlags &
+                     (XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT))) {
+                    // Simplify our code here by waiting for the device to be idle.
+                    m_vkDispatch.vkDeviceWaitIdle(sessionState.vkDevice);
+
+                    VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+                    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+                    CHECK_VKCMD(m_vkDispatch.vkBeginCommandBuffer(sessionState.vkCmdBuffer, &beginInfo));
+                }
 
                 // Export each D3D12 texture to Vulkan/OpenGL.
                 for (uint32_t i = 0; i < *imageCountOutput; i++) {
@@ -1268,6 +1271,40 @@ namespace {
                             bindImageInfo.image = image;
                             bindImageInfo.memory = memory;
                             CHECK_VKCMD(m_vkDispatch.vkBindImageMemory2KHR(sessionState.vkDevice, 1, &bindImageInfo));
+
+                            // Transition the image to the layout expected by the application.
+                            if (swapchainState.createInfo.usageFlags &
+                                (XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT |
+                                 XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)) {
+                                VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+                                barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                                if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT) {
+                                    barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                                }
+                                if (swapchainState.createInfo.usageFlags &
+                                    XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+                                    barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                                }
+                                barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                                barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                                barrier.image = swapchainState.vkImage[i];
+                                barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                                barrier.subresourceRange.baseMipLevel = 0;
+                                barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+                                barrier.subresourceRange.baseArrayLayer = 0;
+                                barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+                                m_vkDispatch.vkCmdPipelineBarrier(sessionState.vkCmdBuffer,
+                                                                  VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                                                  VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+                                                                  0,
+                                                                  0,
+                                                                  (VkMemoryBarrier*)nullptr,
+                                                                  0,
+                                                                  (VkBufferMemoryBarrier*)nullptr,
+                                                                  1,
+                                                                  &barrier);
+                            }
                         } else {
                             GlContextSwitch context(sessionState);
 
@@ -1365,69 +1402,16 @@ namespace {
                                           TLArg(glImages[i].image, "Texture"));
                     }
                 }
-            }
 
-            return result;
-        }
-
-        XrResult xrAcquireSwapchainImage(XrSwapchain swapchain,
-                                         const XrSwapchainImageAcquireInfo* acquireInfo,
-                                         uint32_t* index) override {
-            if (acquireInfo && acquireInfo->type != XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO) {
-                return XR_ERROR_VALIDATION_FAILURE;
-            }
-
-            TraceLoggingWrite(g_traceProvider, "xrAcquireSwapchainImage", TLPArg(swapchain, "Swapchain"));
-
-            const XrResult result = OpenXrApi::xrAcquireSwapchainImage(swapchain, acquireInfo, index);
-            TraceLoggingWrite(g_traceProvider, "xrAcquireSwapchainImage", TLArg(*index, "Index"));
-
-            if (XR_SUCCEEDED(result) && isSwapchainHandled(swapchain)) {
-                auto& swapchainState = m_swapchains[swapchain];
-                auto& sessionState = m_sessions[swapchainState.xrSession];
-
-                if (sessionState.api == GfxApi::Vulkan &&
+                // Execute the command list to transition images.
+                if (isVulkan &&
                     (swapchainState.createInfo.usageFlags &
                      (XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT))) {
-                    // Transition the image to the layout expected by the application.
-                    VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
-                    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-                    if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT) {
-                        barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                    }
-                    if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
-                        barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-                    }
-                    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                    barrier.image = swapchainState.vkImage[*index];
-                    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                    barrier.subresourceRange.baseMipLevel = 0;
-                    barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-                    barrier.subresourceRange.baseArrayLayer = 0;
-                    barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
-                    VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-                    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-                    CHECK_VKCMD(m_vkDispatch.vkBeginCommandBuffer(swapchainState.vkCmdBuffer, &beginInfo));
-
-                    m_vkDispatch.vkCmdPipelineBarrier(swapchainState.vkCmdBuffer,
-                                                      VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                                      VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-                                                      0,
-                                                      0,
-                                                      (VkMemoryBarrier*)nullptr,
-                                                      0,
-                                                      (VkBufferMemoryBarrier*)nullptr,
-                                                      1,
-                                                      &barrier);
-
-                    m_vkDispatch.vkEndCommandBuffer(swapchainState.vkCmdBuffer);
+                    m_vkDispatch.vkEndCommandBuffer(sessionState.vkCmdBuffer);
 
                     VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
                     submitInfo.commandBufferCount = 1;
-                    submitInfo.pCommandBuffers = &swapchainState.vkCmdBuffer;
+                    submitInfo.pCommandBuffers = &sessionState.vkCmdBuffer;
                     CHECK_VKCMD(m_vkDispatch.vkQueueSubmit(sessionState.vkQueue, 1, &submitInfo, VK_NULL_HANDLE));
                 }
             }
@@ -1603,6 +1587,8 @@ namespace {
             }
 
             if (sessionState.api == GfxApi::Vulkan) {
+                m_vkDispatch.vkFreeCommandBuffers(
+                    sessionState.vkDevice, sessionState.vkCmdPool, 1, &sessionState.vkCmdBuffer);
                 m_vkDispatch.vkDestroyCommandPool(sessionState.vkDevice, sessionState.vkCmdPool, m_vkAllocator);
                 m_vkDispatch.vkDestroySemaphore(sessionState.vkDevice, sessionState.vkTimelineSemaphore, m_vkAllocator);
             } else {
@@ -1619,16 +1605,15 @@ namespace {
         void cleanupSwapchain(Swapchain& swapchainState) {
             auto& sessionState = m_sessions[swapchainState.xrSession];
 
+            if (sessionState.api == GfxApi::Vulkan) {
+                m_vkDispatch.vkDeviceWaitIdle(sessionState.vkDevice);
+            }
+
             for (auto& image : swapchainState.vkImage) {
                 m_vkDispatch.vkDestroyImage(sessionState.vkDevice, image, m_vkAllocator);
             }
             for (auto& memory : swapchainState.vkDeviceMemory) {
                 m_vkDispatch.vkFreeMemory(sessionState.vkDevice, memory, m_vkAllocator);
-            }
-
-            if (swapchainState.vkCmdBuffer != VK_NULL_HANDLE) {
-                m_vkDispatch.vkFreeCommandBuffers(
-                    sessionState.vkDevice, sessionState.vkCmdPool, 1, &swapchainState.vkCmdBuffer);
             }
 
             GlContextSwitch context(sessionState);

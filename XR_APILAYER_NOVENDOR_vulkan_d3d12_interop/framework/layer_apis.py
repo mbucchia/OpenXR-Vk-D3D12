@@ -8,7 +8,6 @@ override_functions = [
     "xrCreateSwapchain",
     "xrDestroySwapchain",
     "xrEnumerateSwapchainImages",
-    "xrAcquireSwapchainImage",
     "xrEndFrame",
     "xrGetVulkanInstanceExtensionsKHR",
     "xrGetVulkanDeviceExtensionsKHR",
