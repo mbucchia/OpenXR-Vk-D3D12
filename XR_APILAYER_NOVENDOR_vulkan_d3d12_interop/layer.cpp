@@ -216,7 +216,7 @@ namespace {
             const XrResult result = OpenXrApi::xrGetSystem(instance, getInfo, systemId);
             if (XR_SUCCEEDED(result) && (m_isVulkanEnabled || m_isOpenGLEnabled) &&
                 getInfo->formFactor == XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY) {
-                if (*systemId != m_systemId) {
+                if (!isSystemHandled(*systemId)) {
                     // Get the graphics device requirement for this system (if D3D12 is enabled).
                     PFN_xrGetD3D12GraphicsRequirementsKHR xrGetD3D12GraphicsRequirementsKHR = nullptr;
                     if (SUCCEEDED(xrGetInstanceProcAddr(
@@ -271,6 +271,10 @@ namespace {
                 return XR_ERROR_FUNCTION_UNSUPPORTED;
             }
 
+            if (!isSystemHandled(systemId)) {
+                return XR_ERROR_SYSTEM_INVALID;
+            }
+
             if (bufferCapacityInput && bufferCapacityInput < instanceExtensions.size()) {
                 return XR_ERROR_SIZE_INSUFFICIENT;
             }
@@ -309,6 +313,10 @@ namespace {
                 return XR_ERROR_FUNCTION_UNSUPPORTED;
             }
 
+            if (!isSystemHandled(systemId)) {
+                return XR_ERROR_SYSTEM_INVALID;
+            }
+
             if (bufferCapacityInput && bufferCapacityInput < deviceExtensions.size()) {
                 return XR_ERROR_SIZE_INSUFFICIENT;
             }
@@ -338,6 +346,10 @@ namespace {
 
             if (!m_isVulkanEnabled) {
                 return XR_ERROR_FUNCTION_UNSUPPORTED;
+            }
+
+            if (!isSystemHandled(systemId)) {
+                return XR_ERROR_SYSTEM_INVALID;
             }
 
             uint32_t deviceCount = 0;
@@ -394,6 +406,10 @@ namespace {
 
             if (!m_isVulkanEnabled) {
                 return XR_ERROR_FUNCTION_UNSUPPORTED;
+            }
+
+            if (!isSystemHandled(createInfo->systemId)) {
+                return XR_ERROR_SYSTEM_INVALID;
             }
 
             uint32_t extensionNamesSize = 0;
@@ -454,6 +470,10 @@ namespace {
 
             if (!m_isVulkanEnabled) {
                 return XR_ERROR_FUNCTION_UNSUPPORTED;
+            }
+
+            if (!isSystemHandled(createInfo->systemId)) {
+                return XR_ERROR_SYSTEM_INVALID;
             }
 
             uint32_t deviceExtensionNamesSize = 0;
@@ -524,6 +544,10 @@ namespace {
                 return XR_ERROR_FUNCTION_UNSUPPORTED;
             }
 
+            if (!isSystemHandled(getInfo->systemId)) {
+                return XR_ERROR_SYSTEM_INVALID;
+            }
+
             CHECK_XRCMD(xrGetVulkanGraphicsDeviceKHR(
                 instance, getInfo->systemId, getInfo->vulkanInstance, vulkanPhysicalDevice));
 
@@ -552,7 +576,13 @@ namespace {
                 return XR_ERROR_FUNCTION_UNSUPPORTED;
             }
 
-            graphicsRequirements->minApiVersionSupported = XR_MAKE_VERSION(1, 0, 0);
+            if (!isSystemHandled(systemId)) {
+                return XR_ERROR_SYSTEM_INVALID;
+            }
+
+            // Require Vulkan 1.1 at minimum.
+            // See https://github.com/mbucchia/OpenXR-Vk-D3D12/issues/3
+            graphicsRequirements->minApiVersionSupported = XR_MAKE_VERSION(1, 1, 0);
             graphicsRequirements->maxApiVersionSupported = XR_MAKE_VERSION(2, 0, 0);
 
             m_graphicsRequirementQueried = true;
@@ -588,6 +618,10 @@ namespace {
 
             if (!m_isOpenGLEnabled) {
                 return XR_ERROR_FUNCTION_UNSUPPORTED;
+            }
+
+            if (!isSystemHandled(systemId)) {
+                return XR_ERROR_SYSTEM_INVALID;
             }
 
             // TODO: The correct version to expect is 4.5, but certain applications will fail with it.
@@ -756,6 +790,11 @@ namespace {
                             TraceLoggingWrite(g_traceProvider, "xrCreateSession", TLArg("Vulkan", "Api"));
                             Log("Using Vulkan interop\n");
 
+                            if (vkBindings->instance == VK_NULL_HANDLE || vkBindings->device == VK_NULL_HANDLE ||
+                                vkBindings->physicalDevice == VK_NULL_HANDLE) {
+                                return XR_ERROR_GRAPHICS_DEVICE_INVALID;
+                            }
+
                             // Gather function pointers for the Vulkan device extensions we are going to use.
                             initializeVulkanDispatch(vkBindings->instance);
 
@@ -817,6 +856,10 @@ namespace {
 
                             TraceLoggingWrite(g_traceProvider, "xrCreateSession", TLArg("OpenGL", "Api"));
                             Log("Using OpenGL interop\n");
+
+                            if (!glBindings->hDC || !glBindings->hGLRC) {
+                                return XR_ERROR_GRAPHICS_DEVICE_INVALID;
+                            }
 
                             // Gather function pointers for the Vulkan device extensions we are going to use.
                             initializeOpenGLDispatch();
@@ -1246,8 +1289,9 @@ namespace {
                             // TODO: Not sure why we need to multiply by 2. Mipmapping?
                             // https://stackoverflow.com/questions/71108346/how-to-use-glimportmemorywin32handleext-to-share-an-id3d11texture2d-keyedmutex-s
                             m_glDispatch.glImportMemoryWin32HandleEXT(memory,
-                                                                      createInfo.width * createInfo.height *
-                                                                          createInfo.sampleCount * bytePerPixels * 2,
+                                                                      createInfo.arraySize * createInfo.width *
+                                                                          createInfo.height * createInfo.sampleCount *
+                                                                          bytePerPixels * 2,
                                                                       GL_HANDLE_TYPE_D3D12_RESOURCE_EXT,
                                                                       textureHandle.get());
 
