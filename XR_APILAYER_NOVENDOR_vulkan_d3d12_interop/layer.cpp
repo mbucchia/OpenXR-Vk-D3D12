@@ -210,6 +210,18 @@ namespace {
             }
         }
 
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrGetInstanceProcAddr
+        XrResult xrGetInstanceProcAddr(XrInstance instance, const char* name, PFN_xrVoidFunction* function) {
+            TraceLoggingWrite(
+                g_traceProvider, "xrGetInstanceProcAddr", TLXArg(instance, "Instance"), TLArg(name, "Name"));
+
+            const auto result = OpenXrApi::xrGetInstanceProcAddr(instance, name, function);
+
+            TraceLoggingWrite(g_traceProvider, "xrGetInstanceProcAddr", TLPArg(*function, "Function"));
+
+            return result;
+        }
+
         // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrCreateInstance
         XrResult xrCreateInstance(const XrInstanceCreateInfo* createInfo) override {
             if (createInfo->type != XR_TYPE_INSTANCE_CREATE_INFO) {
