@@ -4,7 +4,6 @@ override_functions = [
     "xrEnumerateSwapchainFormats",
     "xrCreateSession",
     "xrDestroySession",
-    "xrBeginSession",
     "xrCreateSwapchain",
     "xrDestroySwapchain",
     "xrEnumerateSwapchainImages",

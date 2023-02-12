@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright(c) 2022 Matthieu Bucchianeri
+// Copyright(c) 2022-2023 Matthieu Bucchianeri
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this softwareand associated documentation files(the "Software"), to deal
@@ -66,39 +66,90 @@ namespace {
             XrSession xrSession{XR_NULL_HANDLE};
             XrInstance xrInstance{XR_NULL_HANDLE};
 
-            bool isFovMutable{false};
-
-            GfxApi api;
-
             // We create a D3D12 device that the runtime will be using.
-            ComPtr<ID3D12Device> d3dDevice;
-            ComPtr<ID3D12CommandQueue> d3dQueue;
-
-            // We store information about the Vulkan/OpenGL device that the app is using.
-            VkInstance vkInstance{VK_NULL_HANDLE};
-            VkDevice vkDevice{VK_NULL_HANDLE};
-            VkPhysicalDevice vkPhysicalDevice{VK_NULL_HANDLE};
-            VkPhysicalDeviceMemoryProperties memoryProperties;
-            VkQueue vkQueue{VK_NULL_HANDLE};
-            HDC glDC{0};
-            HGLRC glRC{0};
+            ComPtr<ID3D12Device> runtimeDevice;
+            ComPtr<ID3D12CommandQueue> runtimeQueue;
 
             // For synchronization between the app and the runtime, we use a fence (which corresponds to a timeline
             // semaphore in Vulkan or just semaphore in OpenGL).
-            ComPtr<ID3D12Fence> d3dFence;
-            VkSemaphore vkTimelineSemaphore{VK_NULL_HANDLE};
-            GLuint glSemaphore{0};
+            ComPtr<ID3D12Fence> runtimeFence;
             UINT64 fenceValue{0};
 
-            // Workaround: the AMD driver does not seem to like closing the handle for the shared fence when using
-            // OpenGL. We keep it alive for the whole session.
-            wil::shared_handle fenceHandleForAMDWorkaround;
+            GfxApi api;
+            struct {
+                // We store information about the Vulkan device/queue that the app is using.
+                VkInstance instance{VK_NULL_HANDLE};
+                VkDevice device{VK_NULL_HANDLE};
+                VkPhysicalDevice physicalDevice{VK_NULL_HANDLE};
+                VkPhysicalDeviceMemoryProperties memoryProperties;
+                VkQueue queue{VK_NULL_HANDLE};
 
-            // Vulkan: for layout transitions.
-            VkCommandPool vkCmdPool{VK_NULL_HANDLE};
-            VkCommandBuffer vkCmdBuffer{VK_NULL_HANDLE};
+                // For synchronization between the app and the runtime.
+                VkSemaphore timelineSemaphore{VK_NULL_HANDLE};
+
+                // For layout transitions.
+                VkCommandPool cmdPool{VK_NULL_HANDLE};
+                VkCommandBuffer cmdBuffer{VK_NULL_HANDLE};
+
+                struct {
+                    PFN_vkGetPhysicalDeviceProperties2 vkGetPhysicalDeviceProperties2{nullptr};
+                    PFN_vkGetPhysicalDeviceMemoryProperties vkGetPhysicalDeviceMemoryProperties{nullptr};
+                    PFN_vkGetImageMemoryRequirements2KHR vkGetImageMemoryRequirements2KHR{nullptr};
+                    PFN_vkGetDeviceQueue vkGetDeviceQueue{nullptr};
+                    PFN_vkQueueSubmit vkQueueSubmit{nullptr};
+                    PFN_vkCreateImage vkCreateImage{nullptr};
+                    PFN_vkDestroyImage vkDestroyImage{nullptr};
+                    PFN_vkAllocateMemory vkAllocateMemory{nullptr};
+                    PFN_vkFreeMemory vkFreeMemory{nullptr};
+                    PFN_vkCreateCommandPool vkCreateCommandPool{nullptr};
+                    PFN_vkDestroyCommandPool vkDestroyCommandPool{nullptr};
+                    PFN_vkAllocateCommandBuffers vkAllocateCommandBuffers{nullptr};
+                    PFN_vkFreeCommandBuffers vkFreeCommandBuffers{nullptr};
+                    PFN_vkBeginCommandBuffer vkBeginCommandBuffer{nullptr};
+                    PFN_vkCmdPipelineBarrier vkCmdPipelineBarrier{nullptr};
+                    PFN_vkEndCommandBuffer vkEndCommandBuffer{nullptr};
+                    PFN_vkGetMemoryWin32HandlePropertiesKHR vkGetMemoryWin32HandlePropertiesKHR{nullptr};
+                    PFN_vkBindImageMemory2KHR vkBindImageMemory2KHR{nullptr};
+                    PFN_vkCreateSemaphore vkCreateSemaphore{nullptr};
+                    PFN_vkDestroySemaphore vkDestroySemaphore{nullptr};
+                    PFN_vkImportSemaphoreWin32HandleKHR vkImportSemaphoreWin32HandleKHR{nullptr};
+                    PFN_vkQueueWaitIdle vkQueueWaitIdle{nullptr};
+                    PFN_vkDeviceWaitIdle vkDeviceWaitIdle{nullptr};
+                } dispatch;
+            } vk;
+            struct {
+                // We store information about the OpenGL context that the app is using.
+                HDC DC{0};
+                HGLRC GLRC{0};
+
+                // For synchronization between the app and the runtime.
+                GLuint semaphore{0};
+
+                // Workaround: the AMD driver does not seem to like closing the handle for the shared fence when
+                // using OpenGL. We keep it alive for the whole session.
+                wil::shared_handle fenceHandleForAMDWorkaround;
+
+                struct {
+                    PFNGLGETUNSIGNEDBYTEVEXTPROC glGetUnsignedBytevEXT{nullptr};
+                    PFNGLCREATETEXTURESPROC glCreateTextures{nullptr};
+                    PFNGLCREATEMEMORYOBJECTSEXTPROC glCreateMemoryObjectsEXT{nullptr};
+                    PFNGLDELETEMEMORYOBJECTSEXTPROC glDeleteMemoryObjectsEXT{nullptr};
+                    PFNGLTEXTURESTORAGEMEM2DEXTPROC glTextureStorageMem2DEXT{nullptr};
+                    PFNGLTEXTURESTORAGEMEM2DMULTISAMPLEEXTPROC glTextureStorageMem2DMultisampleEXT{nullptr};
+                    PFNGLTEXTURESTORAGEMEM3DEXTPROC glTextureStorageMem3DEXT{nullptr};
+                    PFNGLTEXTURESTORAGEMEM3DMULTISAMPLEEXTPROC glTextureStorageMem3DMultisampleEXT{nullptr};
+                    PFNGLGENSEMAPHORESEXTPROC glGenSemaphoresEXT{nullptr};
+                    PFNGLDELETESEMAPHORESEXTPROC glDeleteSemaphoresEXT{nullptr};
+                    PFNGLSEMAPHOREPARAMETERUI64VEXTPROC glSemaphoreParameterui64vEXT{nullptr};
+                    PFNGLSIGNALSEMAPHOREEXTPROC glSignalSemaphoreEXT{nullptr};
+                    PFNGLIMPORTMEMORYWIN32HANDLEEXTPROC glImportMemoryWin32HandleEXT{nullptr};
+                    PFNGLIMPORTSEMAPHOREWIN32HANDLEEXTPROC glImportSemaphoreWin32HandleEXT{nullptr};
+                } dispatch;
+
+            } gl;
         };
 
+        // State associated with an OpenXR swapchain.
         struct Swapchain {
             XrSwapchain xrSwapchain{XR_NULL_HANDLE};
             XrSwapchainCreateInfo createInfo;
@@ -107,20 +158,25 @@ namespace {
             XrSession xrSession{XR_NULL_HANDLE};
 
             // We import the memory corresponding to the D3D12 textures that the runtime exposes.
-            std::vector<VkDeviceMemory> vkDeviceMemory;
-            std::vector<VkImage> vkImage;
-            std::vector<GLuint> glMemory;
-            std::vector<GLuint> glImage;
+            struct {
+                std::vector<VkDeviceMemory> deviceMemory;
+                std::vector<VkImage> images;
+            } vk;
+            struct {
+                std::vector<GLuint> memory;
+                std::vector<GLuint> images;
+            } gl;
         };
 
+        // A utility class to switch OpenGL context.
         class GlContextSwitch {
           public:
-            GlContextSwitch(const Session& sessionState) : m_valid(sessionState.glDC != 0) {
+            GlContextSwitch(const Session& sessionState) : m_valid(sessionState.gl.DC != 0) {
                 if (m_valid) {
                     m_glDC = wglGetCurrentDC();
                     m_glRC = wglGetCurrentContext();
 
-                    wglMakeCurrent(sessionState.glDC, sessionState.glRC);
+                    wglMakeCurrent(sessionState.gl.DC, sessionState.gl.GLRC);
 
                     // Reset error codes.
                     while (glGetError() != GL_NO_ERROR)
@@ -154,6 +210,7 @@ namespace {
             }
         }
 
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrCreateInstance
         XrResult xrCreateInstance(const XrInstanceCreateInfo* createInfo) override {
             if (createInfo->type != XR_TYPE_INSTANCE_CREATE_INFO) {
                 return XR_ERROR_VALIDATION_FAILURE;
@@ -202,6 +259,7 @@ namespace {
             return XR_SUCCESS;
         }
 
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrGetSystem
         XrResult xrGetSystem(XrInstance instance, const XrSystemGetInfo* getInfo, XrSystemId* systemId) override {
             if (getInfo->type != XR_TYPE_SYSTEM_GET_INFO) {
                 return XR_ERROR_VALIDATION_FAILURE;
@@ -252,6 +310,7 @@ namespace {
         }
 
         // XR_KHR_vulkan_enable
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrGetVulkanInstanceExtensionsKHR
         XrResult xrGetVulkanInstanceExtensionsKHR(XrInstance instance,
                                                   XrSystemId systemId,
                                                   uint32_t bufferCapacityInput,
@@ -293,6 +352,7 @@ namespace {
         }
 
         // XR_KHR_vulkan_enable
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrGetVulkanDeviceExtensionsKHR
         XrResult xrGetVulkanDeviceExtensionsKHR(XrInstance instance,
                                                 XrSystemId systemId,
                                                 uint32_t bufferCapacityInput,
@@ -335,6 +395,7 @@ namespace {
         }
 
         // XR_KHR_vulkan_enable
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrGetVulkanGraphicsDeviceKHR
         XrResult xrGetVulkanGraphicsDeviceKHR(XrInstance instance,
                                               XrSystemId systemId,
                                               VkInstance vkInstance,
@@ -389,6 +450,7 @@ namespace {
         }
 
         // XR_KHR_vulkan_enable2
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrCreateVulkanInstanceKHR
         // This wrapper is adapted from Khronos SDK's Vulkan plugin.
         XrResult xrCreateVulkanInstanceKHR(XrInstance instance,
                                            const XrVulkanInstanceCreateInfoKHR* createInfo,
@@ -454,6 +516,7 @@ namespace {
         }
 
         // XR_KHR_vulkan_enable2
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrCreateVulkanDeviceKHR
         // This wrapper is adapted from Khronos SDK's Vulkan plugin.
         XrResult xrCreateVulkanDeviceKHR(XrInstance instance,
                                          const XrVulkanDeviceCreateInfoKHR* createInfo,
@@ -524,13 +587,14 @@ namespace {
                               TLPArg(*vulkanDevice, "VkDevice"),
                               TLArg((int)*vulkanResult, "VkResult"));
 
-            m_vkDispatch.vkGetInstanceProcAddr = createInfo->pfnGetInstanceProcAddr;
+            m_vkGetInstanceProcAddr = createInfo->pfnGetInstanceProcAddr;
             m_vkAllocator = createInfo->vulkanAllocator;
 
             return XR_SUCCESS;
         }
 
         // XR_KHR_vulkan_enable2
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrGetVulkanGraphicsDevice2KHR
         // This wrapper is adapted from Khronos SDK's Vulkan plugin.
         XrResult xrGetVulkanGraphicsDevice2KHR(XrInstance instance,
                                                const XrVulkanGraphicsDeviceGetInfoKHR* getInfo,
@@ -567,6 +631,7 @@ namespace {
         }
 
         // XR_KHR_vulkan_enable
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrGetVulkanGraphicsRequirementsKHR
         XrResult xrGetVulkanGraphicsRequirementsKHR(XrInstance instance,
                                                     XrSystemId systemId,
                                                     XrGraphicsRequirementsVulkanKHR* graphicsRequirements) override {
@@ -606,6 +671,7 @@ namespace {
         }
 
         // XR_KHR_vulkan_enable2
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrGetVulkanGraphicsRequirements2KHR
         XrResult xrGetVulkanGraphicsRequirements2KHR(XrInstance instance,
                                                      XrSystemId systemId,
                                                      XrGraphicsRequirementsVulkanKHR* graphicsRequirements) override {
@@ -613,6 +679,7 @@ namespace {
         }
 
         // XR_KHR_opengl_enable
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrGetOpenGLGraphicsRequirementsKHR
         XrResult xrGetOpenGLGraphicsRequirementsKHR(XrInstance instance,
                                                     XrSystemId systemId,
                                                     XrGraphicsRequirementsOpenGLKHR* graphicsRequirements) override {
@@ -650,6 +717,7 @@ namespace {
             return XR_SUCCESS;
         }
 
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrEnumerateSwapchainFormats
         XrResult xrEnumerateSwapchainFormats(XrSession session,
                                              uint32_t formatCapacityInput,
                                              uint32_t* formatCountOutput,
@@ -661,59 +729,75 @@ namespace {
                               TLXArg(session, "Session"),
                               TLArg(formatCapacityInput, "FormatCapacityInput"));
 
-            const XrResult result =
-                OpenXrApi::xrEnumerateSwapchainFormats(session, formatCapacityInput, formatCountOutput, formats);
+            XrResult result = XR_ERROR_RUNTIME_FAILURE;
+            if (isSessionHandled(session)) {
+                // Because we alter the number of formats, we must always perform a first call to get the real number
+                // of formats.
+                result = OpenXrApi::xrEnumerateSwapchainFormats(session, 0, formatCountOutput, nullptr);
+                if (XR_SUCCEEDED(result)) {
+                    // Query the real list of formats.
+                    std::vector<int64_t> runtimeFormats(*formatCountOutput);
+                    result = OpenXrApi::xrEnumerateSwapchainFormats(
+                        session, (uint32_t)runtimeFormats.size(), formatCountOutput, runtimeFormats.data());
+                    if (XR_SUCCEEDED(result)) {
+                        const auto& sessionState = m_sessions[session];
 
-            if (XR_SUCCEEDED(result)) {
-                TraceLoggingWrite(
-                    g_traceProvider, "xrEnumerateSwapchainFormats", TLArg(*formatCountOutput, "FormatCountOutput"));
-                if (isSessionHandled(session) && formatCapacityInput) {
-                    auto& sessionState = m_sessions[session];
+                        // Translate supported formats.
+                        std::vector<int64_t> translatedFormats;
 
-                    // Translate supported formats.
-                    // TODO: Better handle when a runtime format is not available. For now we just copy an adjacent
-                    // format (duplicate).
-                    std::optional<int64_t> firstAvailableFormat;
-                    uint32_t firstAvailableFormatIndex = 0;
 #define TRANSLATE_FORMAT(table, type)                                                                                  \
     {                                                                                                                  \
         for (uint32_t i = 0; i < *formatCountOutput; i++) {                                                            \
-            bool found = false;                                                                                        \
             for (size_t j = 0; j < ARRAYSIZE(table); j++) {                                                            \
-                if ((int64_t)table[j].dxgi == formats[i]) {                                                            \
-                    formats[i] = (int64_t)table[j].type;                                                               \
-                    if (!firstAvailableFormat) {                                                                       \
-                        firstAvailableFormatIndex = i;                                                                 \
-                        firstAvailableFormat = formats[i];                                                             \
-                    }                                                                                                  \
-                    TraceLoggingWrite(g_traceProvider, "xrEnumerateSwapchainFormats", TLArg(formats[i], "Format"));    \
-                    found = true;                                                                                      \
+                if ((int64_t)table[j].dxgi == runtimeFormats[i]) {                                                     \
+                    translatedFormats.push_back((int64_t)table[j].type);                                               \
                     break;                                                                                             \
                 }                                                                                                      \
-            }                                                                                                          \
-            if (!found && firstAvailableFormat) {                                                                      \
-                formats[i] = firstAvailableFormat.value();                                                             \
-            }                                                                                                          \
-        }                                                                                                              \
-        if (firstAvailableFormat) {                                                                                    \
-            for (uint32_t i = 0; i < firstAvailableFormatIndex; i++) {                                                 \
-                formats[i] = firstAvailableFormat.value();                                                             \
             }                                                                                                          \
         }                                                                                                              \
     }
 
-                    if (sessionState.api == GfxApi::Vulkan) {
-                        TRANSLATE_FORMAT(util::DxgiToVkFormat, vk);
-                    } else {
-                        TRANSLATE_FORMAT(util::DxgiToGlFormat, gl);
-                    }
+                        if (sessionState.api == GfxApi::Vulkan) {
+                            TRANSLATE_FORMAT(util::DxgiToVkFormat, vk);
+                        } else {
+                            TRANSLATE_FORMAT(util::DxgiToGlFormat, gl);
+                        }
 #undef TRANSLATE_FORMAT
+
+                        // Always return the adjusted count.
+                        *formatCountOutput = (uint32_t)translatedFormats.size();
+                        if (formatCapacityInput && formatCapacityInput < *formatCountOutput) {
+                            result = XR_ERROR_SIZE_INSUFFICIENT;
+                        }
+
+                        // Output the edited list if needed.
+                        if (XR_SUCCEEDED(result) && formats) {
+                            memcpy(formats, translatedFormats.data(), translatedFormats.size() * sizeof(int64_t));
+                        }
+                    }
+                }
+            } else {
+                result =
+                    OpenXrApi::xrEnumerateSwapchainFormats(session, formatCapacityInput, formatCountOutput, formats);
+            }
+
+            if (XR_SUCCEEDED(result) || result == XR_ERROR_SIZE_INSUFFICIENT) {
+                TraceLoggingWrite(
+                    g_traceProvider, "xrEnumerateSwapchainFormats", TLArg(*formatCountOutput, "FormatCountOutput"));
+            }
+
+            if (XR_SUCCEEDED(result)) {
+                if (formatCapacityInput) {
+                    for (uint32_t i = 0; i < *formatCountOutput; i++) {
+                        TraceLoggingWrite(g_traceProvider, "xrEnumerateSwapchainFormats", TLArg(formats[i], "Format"));
+                    }
                 }
             }
 
             return result;
         }
 
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrCreateSession
         XrResult xrCreateSession(XrInstance instance,
                                  const XrSessionCreateInfo* createInfo,
                                  XrSession* session) override {
@@ -748,56 +832,9 @@ namespace {
                         }
 
                         // Create D3D12 resources.
-                        {
-                            ComPtr<IDXGIFactory1> dxgiFactory;
-                            CHECK_HRCMD(CreateDXGIFactory1(IID_PPV_ARGS(dxgiFactory.ReleaseAndGetAddressOf())));
+                        initializeRuntimeResources(newSession);
 
-                            ComPtr<IDXGIAdapter1> dxgiAdapter;
-                            for (UINT adapterIndex = 0;; adapterIndex++) {
-                                // EnumAdapters1 will fail with DXGI_ERROR_NOT_FOUND when there are no more adapters to
-                                // enumerate.
-                                CHECK_HRCMD(
-                                    dxgiFactory->EnumAdapters1(adapterIndex, dxgiAdapter.ReleaseAndGetAddressOf()));
-
-                                DXGI_ADAPTER_DESC1 adapterDesc;
-                                CHECK_HRCMD(dxgiAdapter->GetDesc1(&adapterDesc));
-                                if (!memcmp(&adapterDesc.AdapterLuid, &m_d3d12Requirements.adapterLuid, sizeof(LUID))) {
-                                    const std::wstring wadapterDescription(adapterDesc.Description);
-                                    std::string adapterDescription;
-                                    std::transform(wadapterDescription.begin(),
-                                                   wadapterDescription.end(),
-                                                   std::back_inserter(adapterDescription),
-                                                   [](wchar_t c) { return (char)c; });
-
-                                    TraceLoggingWrite(g_traceProvider,
-                                                      "xrCreateSession",
-                                                      TLArg(adapterDescription.c_str(), "DeviceName"));
-                                    Log("Using Direct3D 12 on adapter: %s\n", adapterDescription.c_str());
-                                    break;
-                                }
-                            }
-
-                            // Create the interop device that the runtime will be using...
-                            CHECK_HRCMD(D3D12CreateDevice(dxgiAdapter.Get(),
-                                                          m_d3d12Requirements.minFeatureLevel,
-                                                          IID_PPV_ARGS(newSession.d3dDevice.ReleaseAndGetAddressOf())));
-
-                            // ... and the necessary queue.
-                            D3D12_COMMAND_QUEUE_DESC queueDesc;
-                            ZeroMemory(&queueDesc, sizeof(queueDesc));
-                            queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-                            queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-                            CHECK_HRCMD(newSession.d3dDevice->CreateCommandQueue(
-                                &queueDesc, IID_PPV_ARGS(newSession.d3dQueue.ReleaseAndGetAddressOf())));
-
-                            // We will use a shareable fence to synchronize between the Vulkan queue and the D3D queue.
-                            CHECK_HRCMD(newSession.d3dDevice->CreateFence(
-                                0,
-                                D3D12_FENCE_FLAG_SHARED,
-                                IID_PPV_ARGS(newSession.d3dFence.ReleaseAndGetAddressOf())));
-                        }
-
-                        // Create Vulkan resources.
+                        // Create interop resources.
                         if (isVulkan) {
                             const XrGraphicsBindingVulkanKHR* vkBindings =
                                 reinterpret_cast<const XrGraphicsBindingVulkanKHR*>(entry);
@@ -810,70 +847,13 @@ namespace {
                                 return XR_ERROR_GRAPHICS_DEVICE_INVALID;
                             }
 
-                            // Gather function pointers for the Vulkan device extensions we are going to use.
-                            initializeVulkanDispatch(vkBindings->instance);
-
-                            newSession.vkInstance = vkBindings->instance;
-                            newSession.vkDevice = vkBindings->device;
-                            newSession.vkPhysicalDevice = vkBindings->physicalDevice;
-
-                            // Check that the app is using the correct adapter.
-                            VkPhysicalDeviceIDProperties deviceId{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
-                            VkPhysicalDeviceProperties2 properties{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
-                                                                   &deviceId};
-                            m_vkDispatch.vkGetPhysicalDeviceProperties2(newSession.vkPhysicalDevice, &properties);
-                            if (!deviceId.deviceLUIDValid ||
-                                memcmp(&m_d3d12Requirements.adapterLuid, deviceId.deviceLUID, sizeof(LUID))) {
-                                Log("Application did not initialize the correct adapter\n");
-                                return XR_ERROR_GRAPHICS_DEVICE_INVALID;
-                            }
-
-                            m_vkDispatch.vkGetPhysicalDeviceMemoryProperties(newSession.vkPhysicalDevice,
-                                                                             &newSession.memoryProperties);
-
-                            m_vkDispatch.vkGetDeviceQueue(newSession.vkDevice,
-                                                          vkBindings->queueFamilyIndex,
-                                                          vkBindings->queueIndex,
-                                                          &newSession.vkQueue);
-
-                            // Create the timeline semaphore that we will use to synchronize between the Vulkan
-                            // queue and the D3D queue.
-                            VkSemaphoreTypeCreateInfo timelineCreateInfo{VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO};
-                            timelineCreateInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
-                            VkSemaphoreCreateInfo createInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-                                                             &timelineCreateInfo};
-                            CHECK_VKCMD(m_vkDispatch.vkCreateSemaphore(
-                                newSession.vkDevice, &createInfo, m_vkAllocator, &newSession.vkTimelineSemaphore));
-
-                            // Import the D3D fence into the semaphore.
-                            wil::unique_handle fenceHandle = nullptr;
-                            CHECK_HRCMD(newSession.d3dDevice->CreateSharedHandle(
-                                newSession.d3dFence.Get(), nullptr, GENERIC_ALL, nullptr, fenceHandle.put()));
-
-                            VkImportSemaphoreWin32HandleInfoKHR semaphoreImportInfo{
-                                VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR};
-                            semaphoreImportInfo.semaphore = newSession.vkTimelineSemaphore;
-                            semaphoreImportInfo.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT;
-                            semaphoreImportInfo.handle = fenceHandle.get();
-                            CHECK_VKCMD(m_vkDispatch.vkImportSemaphoreWin32HandleKHR(newSession.vkDevice,
-                                                                                     &semaphoreImportInfo));
-
-                            // Create a command buffer for transitioning the layout in xrCreateSwapchain().
-                            VkCommandPoolCreateInfo poolCreateInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
-                            poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-                            poolCreateInfo.queueFamilyIndex = vkBindings->queueFamilyIndex;
-                            CHECK_VKCMD(m_vkDispatch.vkCreateCommandPool(
-                                newSession.vkDevice, &poolCreateInfo, m_vkAllocator, &newSession.vkCmdPool));
-
-                            VkCommandBufferAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-                            allocateInfo.commandPool = newSession.vkCmdPool;
-                            allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-                            allocateInfo.commandBufferCount = 1;
-
-                            CHECK_VKCMD(m_vkDispatch.vkAllocateCommandBuffers(
-                                newSession.vkDevice, &allocateInfo, &newSession.vkCmdBuffer));
-
+                            // Create the Vulkan resources.
                             newSession.api = GfxApi::Vulkan;
+
+                            const XrResult result = initializeVulkanResources(newSession, *vkBindings);
+                            if (XR_FAILED(result)) {
+                                return result;
+                            }
                         } else {
                             const XrGraphicsBindingOpenGLWin32KHR* glBindings =
                                 reinterpret_cast<const XrGraphicsBindingOpenGLWin32KHR*>(entry);
@@ -885,47 +865,28 @@ namespace {
                                 return XR_ERROR_GRAPHICS_DEVICE_INVALID;
                             }
 
-                            // Gather function pointers for the Vulkan device extensions we are going to use.
-                            initializeOpenGLDispatch();
-
-                            newSession.glDC = glBindings->hDC;
-                            newSession.glRC = glBindings->hGLRC;
-
-                            GlContextSwitch context(newSession);
-
-                            // Check that the app is using the correct adapter.
-                            LUID adapterLuid{};
-                            m_glDispatch.glGetUnsignedBytevEXT(GL_DEVICE_LUID_EXT, (GLubyte*)&adapterLuid);
-                            if (memcmp(&adapterLuid, &m_d3d12Requirements.adapterLuid, sizeof(LUID))) {
-                                Log("Application did not initialize the correct adapter\n");
-                                return XR_ERROR_GRAPHICS_DEVICE_INVALID;
+                            // Create the OpenGL resources.
+                            newSession.api = GfxApi::OpenGL;
+                            const XrResult result = initializeOpenGLResources(newSession, *glBindings);
+                            if (XR_FAILED(result)) {
+                                return result;
                             }
 
-                            // Create the semaphore that we will use to synchronize between the OpenGL context
-                            // and the D3D queue.
-                            m_glDispatch.glGenSemaphoresEXT(1, &newSession.glSemaphore);
-
-                            // Import the D3D fence into the semaphore.
-                            CHECK_HRCMD(
-                                newSession.d3dDevice->CreateSharedHandle(newSession.d3dFence.Get(),
-                                                                         nullptr,
-                                                                         GENERIC_ALL,
-                                                                         nullptr,
-                                                                         newSession.fenceHandleForAMDWorkaround.put()));
-
-                            m_glDispatch.glImportSemaphoreWin32HandleEXT(newSession.glSemaphore,
-                                                                         GL_HANDLE_TYPE_D3D12_FENCE_EXT,
-                                                                         newSession.fenceHandleForAMDWorkaround.get());
-
-                            newSession.api = GfxApi::OpenGL;
+                            // Check that the runtime supports mutable FOV.
+                            XrViewConfigurationProperties properties{XR_TYPE_VIEW_CONFIGURATION_PROPERTIES};
+                            if (XR_SUCCEEDED(xrGetViewConfigurationProperties(
+                                    instance, m_systemId, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, &properties)) &&
+                                !properties.fovMutable) {
+                                Log("Runtime does not support mutable FOV, image may be upside-down!\n");
+                            }
                         }
 
                         // Fill out the struct that we are passing to the OpenXR runtime.
                         // TODO: Do not write to the const struct!
                         *const_cast<XrBaseInStructure**>(pprev) = reinterpret_cast<XrBaseInStructure*>(&d3dBindings);
                         d3dBindings.next = entry->next;
-                        d3dBindings.device = newSession.d3dDevice.Get();
-                        d3dBindings.queue = newSession.d3dQueue.Get();
+                        d3dBindings.device = newSession.runtimeDevice.Get();
+                        d3dBindings.queue = newSession.runtimeQueue.Get();
 
                         handled = true;
 
@@ -939,27 +900,12 @@ namespace {
             const XrResult result = OpenXrApi::xrCreateSession(instance, createInfo, session);
             if (handled) {
                 if (XR_SUCCEEDED(result)) {
-                    // On success, record the state.
                     newSession.xrSession = *session;
+
+                    // On success, record the state.
                     m_sessions.insert_or_assign(*session, newSession);
                 } else {
-                    // Cleanup on error.
-                    if (newSession.vkCmdBuffer != VK_NULL_HANDLE) {
-                        m_vkDispatch.vkFreeCommandBuffers(
-                            newSession.vkDevice, newSession.vkCmdPool, 1, &newSession.vkCmdBuffer);
-                    }
-                    if (newSession.vkCmdPool != VK_NULL_HANDLE) {
-                        m_vkDispatch.vkDestroyCommandPool(newSession.vkDevice, newSession.vkCmdPool, m_vkAllocator);
-                    }
-                    if (newSession.vkDevice != VK_NULL_HANDLE) {
-                        m_vkDispatch.vkDestroySemaphore(
-                            newSession.vkDevice, newSession.vkTimelineSemaphore, m_vkAllocator);
-                    }
-                    if (newSession.glSemaphore) {
-                        GlContextSwitch context(newSession);
-
-                        m_glDispatch.glDeleteSemaphoresEXT(1, &newSession.glSemaphore);
-                    }
+                    cleanupSession(newSession);
                 }
             }
 
@@ -970,6 +916,7 @@ namespace {
             return result;
         }
 
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrDestroySession
         XrResult xrDestroySession(XrSession session) override {
             std::unique_lock lock(m_globalLock);
 
@@ -986,38 +933,7 @@ namespace {
             return result;
         }
 
-        XrResult xrBeginSession(XrSession session, const XrSessionBeginInfo* beginInfo) override {
-            if (beginInfo->type != XR_TYPE_SESSION_BEGIN_INFO) {
-                return XR_ERROR_VALIDATION_FAILURE;
-            }
-
-            std::unique_lock lock(m_globalLock);
-
-            TraceLoggingWrite(
-                g_traceProvider,
-                "xrBeginSession",
-                TLXArg(session, "Session"),
-                TLArg(xr::ToCString(beginInfo->primaryViewConfigurationType), "PrimaryViewConfigurationType"));
-
-            const XrResult result = OpenXrApi::xrBeginSession(session, beginInfo);
-            if (XR_SUCCEEDED(result) && isSessionHandled(session)) {
-                auto& sessionState = m_sessions[session];
-
-                XrViewConfigurationProperties properties{XR_TYPE_VIEW_CONFIGURATION_PROPERTIES};
-                CHECK_XRCMD(xrGetViewConfigurationProperties(
-                    sessionState.xrInstance, m_systemId, beginInfo->primaryViewConfigurationType, &properties));
-
-                sessionState.isFovMutable = properties.fovMutable;
-
-                // TODO: For now we don't support inverting the image ourselves and rely on the FOV.
-                if (sessionState.api == GfxApi::OpenGL && !sessionState.isFovMutable) {
-                    Log("Runtime does not support mutable FOV, image may be upside-down!\n");
-                }
-            }
-
-            return result;
-        }
-
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrCreateSwapchain
         XrResult xrCreateSwapchain(XrSession session,
                                    const XrSwapchainCreateInfo* createInfo,
                                    XrSwapchain* swapchain) override {
@@ -1045,7 +961,7 @@ namespace {
             bool handled = false;
 
             if (isSessionHandled(session)) {
-                auto& sessionState = m_sessions[session];
+                const auto& sessionState = m_sessions[session];
 
                 Log("Creating swapchain with dimensions=%ux%u, arraySize=%u, mipCount=%u, sampleCount=%u, "
                     "format=%d, "
@@ -1078,15 +994,22 @@ namespace {
                 newSwapchain.xrSession = session;
                 newSwapchain.createInfo = *createInfo;
 
-                // The rest will be filled in by xrEnumerateSwapchainImages().
-
                 handled = true;
             }
 
             const XrResult result = OpenXrApi::xrCreateSwapchain(session, &chainCreateInfo, swapchain);
             if (XR_SUCCEEDED(result) && handled) {
-                // On success, record the state.
+                const auto& sessionState = m_sessions[session];
+
                 newSwapchain.xrSwapchain = *swapchain;
+
+                if (sessionState.api == GfxApi::Vulkan) {
+                    initializeVulkanSwapchain(sessionState, newSwapchain);
+                } else {
+                    initializeOpenGLSwapchain(sessionState, newSwapchain);
+                }
+
+                // On success, record the state.
                 m_swapchains.insert_or_assign(*swapchain, newSwapchain);
             }
 
@@ -1095,6 +1018,7 @@ namespace {
             return result;
         }
 
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrDestroySwapchain
         XrResult xrDestroySwapchain(XrSwapchain swapchain) override {
             std::unique_lock lock(m_globalLock);
 
@@ -1111,6 +1035,7 @@ namespace {
             return result;
         }
 
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrEnumerateSwapchainImages
         XrResult xrEnumerateSwapchainImages(XrSwapchain swapchain,
                                             uint32_t imageCapacityInput,
                                             uint32_t* imageCountOutput,
@@ -1122,330 +1047,60 @@ namespace {
                               TLXArg(swapchain, "Swapchain"),
                               TLArg(imageCapacityInput, "ImageCapacityInput"));
 
-            if (!isSwapchainHandled(swapchain) || imageCapacityInput == 0) {
-                const XrResult result =
-                    OpenXrApi::xrEnumerateSwapchainImages(swapchain, imageCapacityInput, imageCountOutput, images);
-                TraceLoggingWrite(
-                    g_traceProvider, "xrEnumerateSwapchainImages", TLArg(*imageCountOutput, "ImageCountOutput"));
-                return result;
-            }
+            XrResult result = XR_ERROR_RUNTIME_FAILURE;
+            if (isSwapchainHandled(swapchain) && imageCapacityInput) {
+                const auto& swapchainState = m_swapchains[swapchain];
+                const auto& sessionState = m_sessions[swapchainState.xrSession];
 
-            // Enumerate the actual D3D swapchain images.
-            std::vector<XrSwapchainImageD3D12KHR> d3dImages(imageCapacityInput, {XR_TYPE_SWAPCHAIN_IMAGE_D3D12_KHR});
-            const XrResult result =
-                OpenXrApi::xrEnumerateSwapchainImages(swapchain,
-                                                      imageCapacityInput,
-                                                      imageCountOutput,
-                                                      reinterpret_cast<XrSwapchainImageBaseHeader*>(d3dImages.data()));
-            if (XR_SUCCEEDED(result)) {
-                TraceLoggingWrite(
-                    g_traceProvider, "xrEnumerateSwapchainImages", TLArg(*imageCountOutput, "ImageCountOutput"));
+                // Return the Vulkan or OpenGL images instead of the runtime ones.
 
-                auto& swapchainState = m_swapchains[swapchain];
-                auto& sessionState = m_sessions[swapchainState.xrSession];
-
-                const bool isVulkan = sessionState.api == GfxApi::Vulkan;
-
-                const bool initialized = !swapchainState.vkImage.empty() || !swapchainState.glImage.empty();
-
-                // Helper to select the memory type.
-                auto findMemoryType = [sessionState](uint32_t memoryTypeBitsRequirement, VkFlags requirementsMask) {
-                    for (uint32_t memoryIndex = 0; memoryIndex < VK_MAX_MEMORY_TYPES; ++memoryIndex) {
-                        const uint32_t memoryTypeBits = (1 << memoryIndex);
-                        const bool isRequiredMemoryType = memoryTypeBitsRequirement & memoryTypeBits;
-                        const bool satisfiesFlags =
-                            (sessionState.memoryProperties.memoryTypes[memoryIndex].propertyFlags & requirementsMask) ==
-                            requirementsMask;
-
-                        if (isRequiredMemoryType && satisfiesFlags) {
-                            return memoryIndex;
-                        }
-                    }
-
-                    CHECK_VKCMD(VK_ERROR_UNKNOWN);
-                    return 0u;
-                };
-
-                // Start a command list to transition images.
-                if (isVulkan &&
-                    (swapchainState.createInfo.usageFlags &
-                     (XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT))) {
-                    // Simplify our code here by waiting for the device to be idle.
-                    m_vkDispatch.vkDeviceWaitIdle(sessionState.vkDevice);
-
-                    VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
-                    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-                    CHECK_VKCMD(m_vkDispatch.vkBeginCommandBuffer(sessionState.vkCmdBuffer, &beginInfo));
+                if (sessionState.api == GfxApi::Vulkan) {
+                    *imageCountOutput = (uint32_t)swapchainState.vk.images.size();
+                } else {
+                    *imageCountOutput = (uint32_t)swapchainState.gl.images.size();
                 }
 
-                // Export each D3D12 texture to Vulkan/OpenGL.
-                for (uint32_t i = 0; i < *imageCountOutput; i++) {
-                    if (!initialized) {
-                        // Dump the runtime texture descriptor.
-                        if (i == 0) {
-                            const auto& desc = d3dImages[0].texture->GetDesc();
+                result = XR_SUCCESS;
+                if (imageCapacityInput < *imageCountOutput) {
+                    result = XR_ERROR_SIZE_INSUFFICIENT;
+                }
+
+                if (XR_SUCCEEDED(result)) {
+                    if (sessionState.api == GfxApi::Vulkan) {
+                        XrSwapchainImageVulkanKHR* vkImages = reinterpret_cast<XrSwapchainImageVulkanKHR*>(images);
+                        for (uint32_t i = 0; i < *imageCountOutput; i++) {
+                            vkImages[i].image = swapchainState.vk.images[i];
+
                             TraceLoggingWrite(g_traceProvider,
                                               "xrEnumerateSwapchainImages",
-                                              TLArg("D3D12", "Api"),
-                                              TLArg(desc.Width, "Width"),
-                                              TLArg(desc.Height, "Height"),
-                                              TLArg(desc.DepthOrArraySize, "ArraySize"),
-                                              TLArg(desc.MipLevels, "MipCount"),
-                                              TLArg(desc.SampleDesc.Count, "SampleCount"),
-                                              TLArg((int)desc.Format, "Format"),
-                                              TLArg((int)desc.Flags, "Flags"));
-                            Log("Swapchain image descriptor:\n");
-                            Log("  w=%u h=%u arraySize=%u format=%u\n",
-                                desc.Width,
-                                desc.Height,
-                                desc.DepthOrArraySize,
-                                desc.Format);
-                            Log("  mipCount=%u sampleCount=%u\n", desc.MipLevels, desc.SampleDesc.Count);
-                            Log("  flags=0x%x\n", desc.Flags);
+                                              TLArg("Vulkan", "Api"),
+                                              TLXArg(vkImages[i].image, "Texture"));
                         }
-
-                        wil::unique_handle textureHandle = nullptr;
-                        CHECK_HRCMD(sessionState.d3dDevice->CreateSharedHandle(
-                            d3dImages[i].texture, nullptr, GENERIC_ALL, nullptr, textureHandle.put()));
-
-                        if (isVulkan) {
-                            // Prepare the Vulkan image that the app will use.
-                            VkImage image;
-
-                            VkExternalMemoryImageCreateInfo externalCreateInfo{
-                                VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO};
-                            externalCreateInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT;
-
-                            VkImageCreateInfo createInfo{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, &externalCreateInfo};
-                            createInfo.imageType = VK_IMAGE_TYPE_2D;
-                            createInfo.format = (VkFormat)swapchainState.createInfo.format;
-                            createInfo.extent.width = swapchainState.createInfo.width;
-                            createInfo.extent.height = swapchainState.createInfo.height;
-                            createInfo.extent.depth = 1;
-                            createInfo.mipLevels = swapchainState.createInfo.mipCount;
-                            createInfo.arrayLayers = swapchainState.createInfo.arraySize;
-                            createInfo.samples = (VkSampleCountFlagBits)swapchainState.createInfo.sampleCount;
-                            createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-                            createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-                            if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT) {
-                                createInfo.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-                            }
-                            if (swapchainState.createInfo.usageFlags &
-                                XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
-                                createInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-                            }
-                            if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_SAMPLED_BIT) {
-                                createInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
-                            }
-                            if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_UNORDERED_ACCESS_BIT) {
-                                createInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
-                            }
-                            if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_TRANSFER_SRC_BIT) {
-                                createInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-                            }
-                            if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT) {
-                                createInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-                            }
-                            if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_MUTABLE_FORMAT_BIT) {
-                                createInfo.usage |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
-                            }
-                            createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-                            CHECK_VKCMD(
-                                m_vkDispatch.vkCreateImage(sessionState.vkDevice, &createInfo, m_vkAllocator, &image));
-
-                            swapchainState.vkImage.push_back(image);
-
-                            // Import the device memory from D3D.
-                            VkDeviceMemory memory;
-
-                            VkImageMemoryRequirementsInfo2 requirementInfo{
-                                VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2};
-                            requirementInfo.image = image;
-                            VkMemoryRequirements2 requirements{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
-                            m_vkDispatch.vkGetImageMemoryRequirements2KHR(
-                                sessionState.vkDevice, &requirementInfo, &requirements);
-
-                            VkMemoryWin32HandlePropertiesKHR handleProperties{
-                                VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR};
-                            CHECK_VKCMD(m_vkDispatch.vkGetMemoryWin32HandlePropertiesKHR(
-                                sessionState.vkDevice,
-                                VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT,
-                                textureHandle.get(),
-                                &handleProperties));
-
-                            VkImportMemoryWin32HandleInfoKHR importInfo{
-                                VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR};
-                            importInfo.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT;
-                            importInfo.handle = textureHandle.get();
-
-                            VkMemoryDedicatedAllocateInfo memoryAllocateInfo{
-                                VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO, &importInfo};
-                            memoryAllocateInfo.image = image;
-
-                            VkMemoryAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-                                                              &memoryAllocateInfo};
-                            allocateInfo.allocationSize = requirements.memoryRequirements.size;
-                            allocateInfo.memoryTypeIndex =
-                                findMemoryType(handleProperties.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
-
-                            CHECK_VKCMD(m_vkDispatch.vkAllocateMemory(
-                                sessionState.vkDevice, &allocateInfo, m_vkAllocator, &memory));
-
-                            swapchainState.vkDeviceMemory.push_back(memory);
-
-                            VkBindImageMemoryInfo bindImageInfo{VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO};
-                            bindImageInfo.image = image;
-                            bindImageInfo.memory = memory;
-                            CHECK_VKCMD(m_vkDispatch.vkBindImageMemory2KHR(sessionState.vkDevice, 1, &bindImageInfo));
-
-                            // Transition the image to the layout expected by the application.
-                            if (swapchainState.createInfo.usageFlags &
-                                (XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT |
-                                 XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)) {
-                                VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
-                                barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-                                if (swapchainState.createInfo.usageFlags & XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT) {
-                                    barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                                }
-                                if (swapchainState.createInfo.usageFlags &
-                                    XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
-                                    barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-                                }
-                                barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                                barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                                barrier.image = swapchainState.vkImage[i];
-                                barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                                barrier.subresourceRange.baseMipLevel = 0;
-                                barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-                                barrier.subresourceRange.baseArrayLayer = 0;
-                                barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
-
-                                m_vkDispatch.vkCmdPipelineBarrier(sessionState.vkCmdBuffer,
-                                                                  VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                                                                  VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-                                                                  0,
-                                                                  0,
-                                                                  (VkMemoryBarrier*)nullptr,
-                                                                  0,
-                                                                  (VkBufferMemoryBarrier*)nullptr,
-                                                                  1,
-                                                                  &barrier);
-                            }
-                        } else {
-                            GlContextSwitch context(sessionState);
-
-                            const auto& createInfo = swapchainState.createInfo;
-
-                            // Import the device memory from D3D.
-                            GLuint memory;
-                            m_glDispatch.glCreateMemoryObjectsEXT(1, &memory);
-                            swapchainState.glMemory.push_back(memory);
-
-                            size_t bytePerPixels = 0;
-                            for (size_t j = 0; j < ARRAYSIZE(util::DxgiToGlFormat); j++) {
-                                if (util::DxgiToGlFormat[j].gl == createInfo.format) {
-                                    bytePerPixels = util::DxgiToGlFormat[j].size;
-                                    break;
-                                }
-                            }
-
-                            // TODO: Not sure why we need to multiply by 2. Mipmapping?
-                            // https://stackoverflow.com/questions/71108346/how-to-use-glimportmemorywin32handleext-to-share-an-id3d11texture2d-keyedmutex-s
-                            m_glDispatch.glImportMemoryWin32HandleEXT(memory,
-                                                                      createInfo.arraySize * createInfo.width *
-                                                                          createInfo.height * createInfo.sampleCount *
-                                                                          bytePerPixels * 2,
-                                                                      GL_HANDLE_TYPE_D3D12_RESOURCE_EXT,
-                                                                      textureHandle.get());
-
-                            // Create the texture that the app will use.
-                            GLuint image;
-
-                            if (createInfo.arraySize == 1) {
-                                if (createInfo.sampleCount == 1) {
-                                    m_glDispatch.glCreateTextures(GL_TEXTURE_2D, 1, &image);
-                                    m_glDispatch.glTextureStorageMem2DEXT(image,
-                                                                          createInfo.mipCount,
-                                                                          (GLenum)createInfo.format,
-                                                                          createInfo.width,
-                                                                          createInfo.height,
-                                                                          memory,
-                                                                          0);
-                                } else {
-                                    m_glDispatch.glCreateTextures(GL_TEXTURE_2D_MULTISAMPLE, 1, &image);
-                                    m_glDispatch.glTextureStorageMem2DMultisampleEXT(image,
-                                                                                     createInfo.sampleCount,
-                                                                                     (GLenum)createInfo.format,
-                                                                                     createInfo.width,
-                                                                                     createInfo.height,
-                                                                                     GL_TRUE,
-                                                                                     memory,
-                                                                                     0);
-                                }
-                            } else {
-                                if (createInfo.sampleCount == 1) {
-                                    m_glDispatch.glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &image);
-                                    m_glDispatch.glTextureStorageMem3DEXT(image,
-                                                                          createInfo.mipCount,
-                                                                          (GLenum)createInfo.format,
-                                                                          createInfo.width,
-                                                                          createInfo.height,
-                                                                          createInfo.arraySize,
-                                                                          memory,
-                                                                          0);
-                                } else {
-                                    m_glDispatch.glCreateTextures(GL_TEXTURE_2D_MULTISAMPLE_ARRAY, 1, &image);
-                                    m_glDispatch.glTextureStorageMem3DMultisampleEXT(image,
-                                                                                     createInfo.sampleCount,
-                                                                                     (GLenum)createInfo.format,
-                                                                                     createInfo.width,
-                                                                                     createInfo.height,
-                                                                                     createInfo.arraySize,
-                                                                                     GL_TRUE,
-                                                                                     memory,
-                                                                                     0);
-                                }
-                            }
-                            swapchainState.glImage.push_back(image);
-                        }
-                    }
-
-                    if (isVulkan) {
-                        XrSwapchainImageVulkanKHR* vkImages = reinterpret_cast<XrSwapchainImageVulkanKHR*>(images);
-                        vkImages[i].image = swapchainState.vkImage[i];
-
-                        TraceLoggingWrite(g_traceProvider,
-                                          "xrEnumerateSwapchainImages",
-                                          TLArg("Vulkan", "Api"),
-                                          TLXArg(vkImages[i].image, "Texture"));
                     } else {
                         XrSwapchainImageOpenGLKHR* glImages = reinterpret_cast<XrSwapchainImageOpenGLKHR*>(images);
-                        glImages[i].image = swapchainState.glImage[i];
+                        for (uint32_t i = 0; i < *imageCountOutput; i++) {
+                            glImages[i].image = swapchainState.gl.images[i];
 
-                        TraceLoggingWrite(g_traceProvider,
-                                          "xrEnumerateSwapchainImages",
-                                          TLArg("OpenGL", "Api"),
-                                          TLArg(glImages[i].image, "Texture"));
+                            TraceLoggingWrite(g_traceProvider,
+                                              "xrEnumerateSwapchainImages",
+                                              TLArg("OpenGL", "Api"),
+                                              TLArg(glImages[i].image, "Texture"));
+                        }
                     }
                 }
+            } else {
+                result = OpenXrApi::xrEnumerateSwapchainImages(swapchain, imageCapacityInput, imageCountOutput, images);
+            }
 
-                // Execute the command list to transition images.
-                if (isVulkan &&
-                    (swapchainState.createInfo.usageFlags &
-                     (XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT))) {
-                    m_vkDispatch.vkEndCommandBuffer(sessionState.vkCmdBuffer);
-
-                    VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-                    submitInfo.commandBufferCount = 1;
-                    submitInfo.pCommandBuffers = &sessionState.vkCmdBuffer;
-                    CHECK_VKCMD(m_vkDispatch.vkQueueSubmit(sessionState.vkQueue, 1, &submitInfo, VK_NULL_HANDLE));
-                }
+            if (XR_SUCCEEDED(result) || result == XR_ERROR_SIZE_INSUFFICIENT) {
+                TraceLoggingWrite(
+                    g_traceProvider, "xrEnumerateSwapchainImages", TLArg(*imageCountOutput, "ImageCountOutput"));
             }
 
             return result;
         }
 
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrEndFrame
         XrResult xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo) override {
             if (frameEndInfo->type != XR_TYPE_FRAME_END_INFO) {
                 return XR_ERROR_VALIDATION_FAILURE;
@@ -1480,23 +1135,25 @@ namespace {
                     timelineInfo.pSignalSemaphoreValues = &sessionState.fenceValue;
                     VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO, &timelineInfo};
                     submitInfo.signalSemaphoreCount = 1;
-                    submitInfo.pSignalSemaphores = &sessionState.vkTimelineSemaphore;
-                    CHECK_VKCMD(m_vkDispatch.vkQueueSubmit(sessionState.vkQueue, 1, &submitInfo, VK_NULL_HANDLE));
+                    submitInfo.pSignalSemaphores = &sessionState.vk.timelineSemaphore;
+                    CHECK_VKCMD(
+                        sessionState.vk.dispatch.vkQueueSubmit(sessionState.vk.queue, 1, &submitInfo, VK_NULL_HANDLE));
                 } else {
                     GlContextSwitch context(sessionState);
 
-                    m_glDispatch.glSemaphoreParameterui64vEXT(
-                        sessionState.glSemaphore, GL_D3D12_FENCE_VALUE_EXT, &sessionState.fenceValue);
+                    sessionState.gl.dispatch.glSemaphoreParameterui64vEXT(
+                        sessionState.gl.semaphore, GL_D3D12_FENCE_VALUE_EXT, &sessionState.fenceValue);
 
-                    m_glDispatch.glSignalSemaphoreEXT(sessionState.glSemaphore, 0, nullptr, 0, nullptr, nullptr);
+                    sessionState.gl.dispatch.glSignalSemaphoreEXT(
+                        sessionState.gl.semaphore, 0, nullptr, 0, nullptr, nullptr);
 
                     glFlush();
                 }
-                CHECK_HRCMD(sessionState.d3dQueue->Wait(sessionState.d3dFence.Get(), sessionState.fenceValue));
+                CHECK_HRCMD(sessionState.runtimeQueue->Wait(sessionState.runtimeFence.Get(), sessionState.fenceValue));
 
                 // When using OpenGL, the Y-axis is inverted, and we must tell the runtime to render the image
                 // upside-up. We use the FOV to do that.
-                if (sessionState.api == GfxApi::OpenGL && sessionState.isFovMutable) {
+                if (sessionState.api == GfxApi::OpenGL) {
                     // We must reserve the underlying storage to keep our pointers stable.
                     layerProjectionAllocator.reserve(chainFrameEndInfo.layerCount);
                     layerProjectionViewsAllocator.reserve(chainFrameEndInfo.layerCount);
@@ -1538,11 +1195,11 @@ namespace {
 
       private:
         // Initialize the function pointers for the Vulkan instance.
-        void initializeVulkanDispatch(VkInstance instance) {
+        void initializeVulkanDispatch(Session& session, VkInstance instance) {
             PFN_vkGetInstanceProcAddr getProcAddr =
-                m_vkDispatch.vkGetInstanceProcAddr ? m_vkDispatch.vkGetInstanceProcAddr : vkGetInstanceProcAddr;
+                m_vkGetInstanceProcAddr ? m_vkGetInstanceProcAddr : vkGetInstanceProcAddr;
 
-#define VK_GET_PTR(fun) m_vkDispatch.fun = reinterpret_cast<PFN_##fun>(getProcAddr(instance, #fun));
+#define VK_GET_PTR(fun) session.vk.dispatch.fun = reinterpret_cast<PFN_##fun>(getProcAddr(instance, #fun));
 
             VK_GET_PTR(vkGetPhysicalDeviceProperties2);
             VK_GET_PTR(vkGetPhysicalDeviceMemoryProperties);
@@ -1565,15 +1222,16 @@ namespace {
             VK_GET_PTR(vkCreateSemaphore);
             VK_GET_PTR(vkDestroySemaphore);
             VK_GET_PTR(vkImportSemaphoreWin32HandleKHR);
+            VK_GET_PTR(vkQueueWaitIdle);
             VK_GET_PTR(vkDeviceWaitIdle);
 
 #undef VK_GET_PTR
         }
 
-        void initializeOpenGLDispatch() {
+        void initializeOpenGLDispatch(Session& session) {
 #define GL_GET_PTR(fun)                                                                                                \
-    m_glDispatch.fun = reinterpret_cast<decltype(m_glDispatch.fun)>(wglGetProcAddress(#fun));                          \
-    CHECK_MSG(m_glDispatch.fun, "OpenGL driver does not support " #fun);
+    session.gl.dispatch.fun = reinterpret_cast<decltype(session.gl.dispatch.fun)>(wglGetProcAddress(#fun));            \
+    CHECK_MSG(session.gl.dispatch.fun, "OpenGL driver does not support " #fun);
 
             GL_GET_PTR(glGetUnsignedBytevEXT);
             GL_GET_PTR(glCreateTextures);
@@ -1593,69 +1251,510 @@ namespace {
 #undef GL_GET_PTR
         }
 
-        void cleanupSession(Session& sessionState) {
-            // Wait for both devices to be idle.
-            wil::unique_handle eventHandle;
-            sessionState.d3dQueue->Signal(sessionState.d3dFence.Get(), ++sessionState.fenceValue);
-            *eventHandle.put() = CreateEventEx(nullptr, L"Flush Fence", 0, EVENT_ALL_ACCESS);
-            CHECK_HRCMD(sessionState.d3dFence->SetEventOnCompletion(sessionState.fenceValue, eventHandle.get()));
-            WaitForSingleObject(eventHandle.get(), INFINITE);
+        void initializeRuntimeResources(Session& session) {
+            ComPtr<IDXGIFactory1> dxgiFactory;
+            CHECK_HRCMD(CreateDXGIFactory1(IID_PPV_ARGS(dxgiFactory.ReleaseAndGetAddressOf())));
 
-            if (sessionState.api == GfxApi::Vulkan) {
-                m_vkDispatch.vkDeviceWaitIdle(sessionState.vkDevice);
+            ComPtr<IDXGIAdapter1> dxgiAdapter;
+            for (UINT adapterIndex = 0;; adapterIndex++) {
+                // EnumAdapters1 will fail with DXGI_ERROR_NOT_FOUND when there are no more adapters to
+                // enumerate.
+                CHECK_HRCMD(dxgiFactory->EnumAdapters1(adapterIndex, dxgiAdapter.ReleaseAndGetAddressOf()));
+
+                DXGI_ADAPTER_DESC1 adapterDesc;
+                CHECK_HRCMD(dxgiAdapter->GetDesc1(&adapterDesc));
+                if (!memcmp(&adapterDesc.AdapterLuid, &m_d3d12Requirements.adapterLuid, sizeof(LUID))) {
+                    const std::wstring wadapterDescription(adapterDesc.Description);
+                    std::string adapterDescription;
+                    std::transform(wadapterDescription.begin(),
+                                   wadapterDescription.end(),
+                                   std::back_inserter(adapterDescription),
+                                   [](wchar_t c) { return (char)c; });
+
+                    TraceLoggingWrite(
+                        g_traceProvider, "xrCreateSession", TLArg(adapterDescription.c_str(), "DeviceName"));
+                    Log("Using Direct3D 12 on adapter: %s\n", adapterDescription.c_str());
+                    break;
+                }
+            }
+
+            // Create the interop device that the runtime will be using...
+            CHECK_HRCMD(D3D12CreateDevice(dxgiAdapter.Get(),
+                                          m_d3d12Requirements.minFeatureLevel,
+                                          IID_PPV_ARGS(session.runtimeDevice.ReleaseAndGetAddressOf())));
+
+            // ... and the necessary queue.
+            D3D12_COMMAND_QUEUE_DESC queueDesc;
+            ZeroMemory(&queueDesc, sizeof(queueDesc));
+            queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+            queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+            CHECK_HRCMD(session.runtimeDevice->CreateCommandQueue(
+                &queueDesc, IID_PPV_ARGS(session.runtimeQueue.ReleaseAndGetAddressOf())));
+
+            // We will use a shareable fence to synchronize between the Vulkan queue and the D3D queue.
+            CHECK_HRCMD(session.runtimeDevice->CreateFence(
+                0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS(session.runtimeFence.ReleaseAndGetAddressOf())));
+        }
+
+        XrResult initializeVulkanResources(Session& session, const XrGraphicsBindingVulkanKHR& vkBindings) {
+            session.vk.instance = vkBindings.instance;
+            session.vk.device = vkBindings.device;
+            session.vk.physicalDevice = vkBindings.physicalDevice;
+
+            initializeVulkanDispatch(session, session.vk.instance);
+
+            // Check that the app is using the correct adapter.
+            VkPhysicalDeviceIDProperties deviceId{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
+            VkPhysicalDeviceProperties2 properties{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, &deviceId};
+            session.vk.dispatch.vkGetPhysicalDeviceProperties2(session.vk.physicalDevice, &properties);
+            if (!deviceId.deviceLUIDValid ||
+                memcmp(&m_d3d12Requirements.adapterLuid, deviceId.deviceLUID, sizeof(LUID))) {
+                Log("Application did not initialize the correct adapter\n");
+                return XR_ERROR_GRAPHICS_DEVICE_INVALID;
+            }
+
+            session.vk.dispatch.vkGetPhysicalDeviceMemoryProperties(session.vk.physicalDevice,
+                                                                    &session.vk.memoryProperties);
+
+            session.vk.dispatch.vkGetDeviceQueue(
+                session.vk.device, vkBindings.queueFamilyIndex, vkBindings.queueIndex, &session.vk.queue);
+
+            // Create the timeline semaphore that we will use to synchronize between the Vulkan
+            // queue and the D3D queue.
+            VkSemaphoreTypeCreateInfo timelineCreateInfo{VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO};
+            timelineCreateInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
+            VkSemaphoreCreateInfo createInfo{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, &timelineCreateInfo};
+            CHECK_VKCMD(session.vk.dispatch.vkCreateSemaphore(
+                session.vk.device, &createInfo, m_vkAllocator, &session.vk.timelineSemaphore));
+
+            // Import the D3D fence into the semaphore.
+            wil::unique_handle fenceHandle = nullptr;
+            CHECK_HRCMD(session.runtimeDevice->CreateSharedHandle(
+                session.runtimeFence.Get(), nullptr, GENERIC_ALL, nullptr, fenceHandle.put()));
+
+            VkImportSemaphoreWin32HandleInfoKHR semaphoreImportInfo{
+                VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR};
+            semaphoreImportInfo.semaphore = session.vk.timelineSemaphore;
+            semaphoreImportInfo.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_D3D12_FENCE_BIT;
+            semaphoreImportInfo.handle = fenceHandle.get();
+            CHECK_VKCMD(session.vk.dispatch.vkImportSemaphoreWin32HandleKHR(session.vk.device, &semaphoreImportInfo));
+
+            // Create a command buffer for transitioning the layout in xrCreateSwapchain().
+            VkCommandPoolCreateInfo poolCreateInfo{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+            poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+            poolCreateInfo.queueFamilyIndex = vkBindings.queueFamilyIndex;
+            CHECK_VKCMD(session.vk.dispatch.vkCreateCommandPool(
+                session.vk.device, &poolCreateInfo, m_vkAllocator, &session.vk.cmdPool));
+
+            VkCommandBufferAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+            allocateInfo.commandPool = session.vk.cmdPool;
+            allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            allocateInfo.commandBufferCount = 1;
+
+            CHECK_VKCMD(
+                session.vk.dispatch.vkAllocateCommandBuffers(session.vk.device, &allocateInfo, &session.vk.cmdBuffer));
+
+            return XR_SUCCESS;
+        }
+
+        XrResult initializeOpenGLResources(Session& session, const XrGraphicsBindingOpenGLWin32KHR& glBindings) {
+            session.gl.DC = glBindings.hDC;
+            session.gl.GLRC = glBindings.hGLRC;
+
+            GlContextSwitch context(session);
+
+            initializeOpenGLDispatch(session);
+
+            // Check that the app is using the correct adapter.
+            LUID adapterLuid{};
+            session.gl.dispatch.glGetUnsignedBytevEXT(GL_DEVICE_LUID_EXT, (GLubyte*)&adapterLuid);
+            if (memcmp(&adapterLuid, &m_d3d12Requirements.adapterLuid, sizeof(LUID))) {
+                Log("Application did not initialize the correct adapter\n");
+                return XR_ERROR_GRAPHICS_DEVICE_INVALID;
+            }
+
+            // Create the semaphore that we will use to synchronize between the OpenGL context
+            // and the D3D queue.
+            session.gl.dispatch.glGenSemaphoresEXT(1, &session.gl.semaphore);
+
+            // Import the D3D fence into the semaphore.
+            CHECK_HRCMD(session.runtimeDevice->CreateSharedHandle(session.runtimeFence.Get(),
+                                                                  nullptr,
+                                                                  GENERIC_ALL,
+                                                                  nullptr,
+                                                                  session.gl.fenceHandleForAMDWorkaround.put()));
+
+            session.gl.dispatch.glImportSemaphoreWin32HandleEXT(
+                session.gl.semaphore, GL_HANDLE_TYPE_D3D12_FENCE_EXT, session.gl.fenceHandleForAMDWorkaround.get());
+
+            return XR_SUCCESS;
+        }
+
+        void cleanupSession(Session& session) {
+            // Wait for both devices to be idle.
+            if (session.runtimeFence) {
+                wil::unique_handle eventHandle;
+                session.runtimeQueue->Signal(session.runtimeFence.Get(), ++session.fenceValue);
+                *eventHandle.put() = CreateEventEx(nullptr, L"Flush Fence", 0, EVENT_ALL_ACCESS);
+                CHECK_HRCMD(session.runtimeFence->SetEventOnCompletion(session.fenceValue, eventHandle.get()));
+                WaitForSingleObject(eventHandle.get(), INFINITE);
+            }
+
+            if (session.api == GfxApi::Vulkan) {
+                if (session.vk.device != VK_NULL_HANDLE) {
+                    session.vk.dispatch.vkDeviceWaitIdle(session.vk.device);
+                }
             } else {
+                GlContextSwitch context(session);
                 glFinish();
             }
 
             for (auto it = m_swapchains.begin(); it != m_swapchains.end();) {
-                auto& swapchainState = it->second;
-                if (swapchainState.xrSession == sessionState.xrSession) {
-                    cleanupSwapchain(swapchainState);
+                auto& swapchain = it->second;
+                if (swapchain.xrSession == session.xrSession) {
+                    cleanupSwapchain(swapchain);
                     it = m_swapchains.erase(it);
                 } else {
                     it++;
                 }
             }
 
-            if (sessionState.api == GfxApi::Vulkan) {
-                m_vkDispatch.vkFreeCommandBuffers(
-                    sessionState.vkDevice, sessionState.vkCmdPool, 1, &sessionState.vkCmdBuffer);
-                m_vkDispatch.vkDestroyCommandPool(sessionState.vkDevice, sessionState.vkCmdPool, m_vkAllocator);
-                m_vkDispatch.vkDestroySemaphore(sessionState.vkDevice, sessionState.vkTimelineSemaphore, m_vkAllocator);
+            if (session.api == GfxApi::Vulkan) {
+                if (session.vk.cmdBuffer != VK_NULL_HANDLE) {
+                    session.vk.dispatch.vkFreeCommandBuffers(
+                        session.vk.device, session.vk.cmdPool, 1, &session.vk.cmdBuffer);
+                }
+                if (session.vk.cmdPool != VK_NULL_HANDLE) {
+                    session.vk.dispatch.vkDestroyCommandPool(session.vk.device, session.vk.cmdPool, m_vkAllocator);
+                }
+                if (session.vk.timelineSemaphore != VK_NULL_HANDLE) {
+                    session.vk.dispatch.vkDestroySemaphore(
+                        session.vk.device, session.vk.timelineSemaphore, m_vkAllocator);
+                }
             } else {
-                GlContextSwitch context(sessionState);
-
-                m_glDispatch.glDeleteSemaphoresEXT(1, &sessionState.glSemaphore);
+                GlContextSwitch context(session);
+                if (session.gl.semaphore) {
+                    session.gl.dispatch.glDeleteSemaphoresEXT(1, &session.gl.semaphore);
+                }
             }
-
-            ZeroMemory(&m_vkDispatch, sizeof(m_vkDispatch));
-            m_vkAllocator = nullptr;
-            ZeroMemory(&m_glDispatch, sizeof(m_glDispatch));
         }
 
-        void cleanupSwapchain(Swapchain& swapchainState) {
-            auto& sessionState = m_sessions[swapchainState.xrSession];
+        void getRuntimeSwapchainImages(const Session& sessionState,
+                                       const Swapchain& swapchainState,
+                                       std::vector<wil::unique_handle>& textureHandles) {
+            // Enumerate the runtime swapchain images.
+            uint32_t count = 0;
+            CHECK_XRCMD(OpenXrApi::xrEnumerateSwapchainImages(swapchainState.xrSwapchain, 0, &count, nullptr));
+            std::vector<XrSwapchainImageD3D12KHR> runtimeImages(count, {XR_TYPE_SWAPCHAIN_IMAGE_D3D12_KHR});
+            CHECK_XRCMD(OpenXrApi::xrEnumerateSwapchainImages(
+                swapchainState.xrSwapchain,
+                count,
+                &count,
+                reinterpret_cast<XrSwapchainImageBaseHeader*>(runtimeImages.data())));
 
-            if (sessionState.api == GfxApi::Vulkan) {
-                m_vkDispatch.vkDeviceWaitIdle(sessionState.vkDevice);
-            } else {
-                glFinish();
+            // Export each texture as a HANDLE.
+            for (uint32_t i = 0; i < count; i++) {
+                // Dump the runtime texture descriptor.
+                if (i == 0) {
+                    const auto& desc = runtimeImages[0].texture->GetDesc();
+                    TraceLoggingWrite(g_traceProvider,
+                                      "xrCreateSwapchain",
+                                      TLArg("D3D12", "Api"),
+                                      TLArg(desc.Width, "Width"),
+                                      TLArg(desc.Height, "Height"),
+                                      TLArg(desc.DepthOrArraySize, "ArraySize"),
+                                      TLArg(desc.MipLevels, "MipCount"),
+                                      TLArg(desc.SampleDesc.Count, "SampleCount"),
+                                      TLArg((int)desc.Format, "Format"),
+                                      TLArg((int)desc.Flags, "Flags"));
+                    Log("Swapchain image descriptor:\n");
+                    Log("  w=%u h=%u arraySize=%u format=%u\n",
+                        desc.Width,
+                        desc.Height,
+                        desc.DepthOrArraySize,
+                        desc.Format);
+                    Log("  mipCount=%u sampleCount=%u\n", desc.MipLevels, desc.SampleDesc.Count);
+                    Log("  flags=0x%x\n", desc.Flags);
+                }
+
+                wil::unique_handle textureHandle = nullptr;
+                CHECK_HRCMD(sessionState.runtimeDevice->CreateSharedHandle(
+                    runtimeImages[i].texture, nullptr, GENERIC_ALL, nullptr, textureHandle.put()));
+                textureHandles.push_back(std::move(textureHandle));
+            }
+        }
+
+        void initializeVulkanSwapchain(const Session& sessionState, Swapchain& swapchain) {
+            const auto& swapchainInfo = swapchain.createInfo;
+
+            const bool needTransition = swapchainInfo.usageFlags & (XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT |
+                                                                    XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+
+            // Helper to select the memory type.
+            auto findMemoryType = [sessionState](uint32_t memoryTypeBitsRequirement, VkFlags requirementsMask) {
+                for (uint32_t memoryIndex = 0; memoryIndex < VK_MAX_MEMORY_TYPES; ++memoryIndex) {
+                    const uint32_t memoryTypeBits = (1 << memoryIndex);
+                    const bool isRequiredMemoryType = memoryTypeBitsRequirement & memoryTypeBits;
+                    const bool satisfiesFlags =
+                        (sessionState.vk.memoryProperties.memoryTypes[memoryIndex].propertyFlags & requirementsMask) ==
+                        requirementsMask;
+
+                    if (isRequiredMemoryType && satisfiesFlags) {
+                        return memoryIndex;
+                    }
+                }
+
+                CHECK_VKCMD(VK_ERROR_UNKNOWN);
+                return 0u;
+            };
+
+            // Start a command list to transition images.
+            if (needTransition) {
+                // Simplify our code here by waiting for the queue to be idle.
+                sessionState.vk.dispatch.vkQueueWaitIdle(sessionState.vk.queue);
+
+                VkCommandBufferBeginInfo beginInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+                beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+                CHECK_VKCMD(sessionState.vk.dispatch.vkBeginCommandBuffer(sessionState.vk.cmdBuffer, &beginInfo));
             }
 
-            for (auto& image : swapchainState.vkImage) {
-                m_vkDispatch.vkDestroyImage(sessionState.vkDevice, image, m_vkAllocator);
-            }
-            for (auto& memory : swapchainState.vkDeviceMemory) {
-                m_vkDispatch.vkFreeMemory(sessionState.vkDevice, memory, m_vkAllocator);
+            std::vector<wil::unique_handle> runtimeTextureHandles;
+            getRuntimeSwapchainImages(sessionState, swapchain, runtimeTextureHandles);
+
+            for (uint32_t i = 0; i < runtimeTextureHandles.size(); i++) {
+                // Prepare the Vulkan image that the app will use.
+                VkImage image;
+
+                VkExternalMemoryImageCreateInfo externalCreateInfo{VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO};
+                externalCreateInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT;
+
+                VkImageCreateInfo createInfo{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO, &externalCreateInfo};
+                createInfo.imageType = VK_IMAGE_TYPE_2D;
+                createInfo.format = (VkFormat)swapchainInfo.format;
+                createInfo.extent.width = swapchainInfo.width;
+                createInfo.extent.height = swapchainInfo.height;
+                createInfo.extent.depth = 1;
+                createInfo.mipLevels = swapchainInfo.mipCount;
+                createInfo.arrayLayers = swapchainInfo.arraySize;
+                createInfo.samples = (VkSampleCountFlagBits)swapchainInfo.sampleCount;
+                createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+                createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                if (swapchainInfo.usageFlags & XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT) {
+                    createInfo.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+                }
+                if (swapchainInfo.usageFlags & XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+                    createInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+                }
+                if (swapchainInfo.usageFlags & XR_SWAPCHAIN_USAGE_SAMPLED_BIT) {
+                    createInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+                }
+                if (swapchainInfo.usageFlags & XR_SWAPCHAIN_USAGE_UNORDERED_ACCESS_BIT) {
+                    createInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
+                }
+                if (swapchainInfo.usageFlags & XR_SWAPCHAIN_USAGE_TRANSFER_SRC_BIT) {
+                    createInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+                }
+                if (swapchainInfo.usageFlags & XR_SWAPCHAIN_USAGE_TRANSFER_DST_BIT) {
+                    createInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+                }
+                if (swapchainInfo.usageFlags & XR_SWAPCHAIN_USAGE_MUTABLE_FORMAT_BIT) {
+                    createInfo.usage |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT;
+                }
+                createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+                CHECK_VKCMD(
+                    sessionState.vk.dispatch.vkCreateImage(sessionState.vk.device, &createInfo, m_vkAllocator, &image));
+
+                swapchain.vk.images.push_back(image);
+
+                // Import the device memory from D3D.
+                VkDeviceMemory memory;
+
+                VkImageMemoryRequirementsInfo2 requirementInfo{VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2};
+                requirementInfo.image = image;
+                VkMemoryRequirements2 requirements{VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2};
+                sessionState.vk.dispatch.vkGetImageMemoryRequirements2KHR(
+                    sessionState.vk.device, &requirementInfo, &requirements);
+
+                VkMemoryWin32HandlePropertiesKHR handleProperties{VK_STRUCTURE_TYPE_MEMORY_WIN32_HANDLE_PROPERTIES_KHR};
+                CHECK_VKCMD(sessionState.vk.dispatch.vkGetMemoryWin32HandlePropertiesKHR(
+                    sessionState.vk.device,
+                    VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT,
+                    runtimeTextureHandles[i].get(),
+                    &handleProperties));
+
+                VkImportMemoryWin32HandleInfoKHR importInfo{VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR};
+                importInfo.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT;
+                importInfo.handle = runtimeTextureHandles[i].get();
+
+                VkMemoryDedicatedAllocateInfo memoryAllocateInfo{VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO,
+                                                                 &importInfo};
+                memoryAllocateInfo.image = image;
+
+                VkMemoryAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO, &memoryAllocateInfo};
+                allocateInfo.allocationSize = requirements.memoryRequirements.size;
+                allocateInfo.memoryTypeIndex =
+                    findMemoryType(handleProperties.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+
+                CHECK_VKCMD(sessionState.vk.dispatch.vkAllocateMemory(
+                    sessionState.vk.device, &allocateInfo, m_vkAllocator, &memory));
+
+                swapchain.vk.deviceMemory.push_back(memory);
+
+                VkBindImageMemoryInfo bindImageInfo{VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO};
+                bindImageInfo.image = image;
+                bindImageInfo.memory = memory;
+                CHECK_VKCMD(sessionState.vk.dispatch.vkBindImageMemory2KHR(sessionState.vk.device, 1, &bindImageInfo));
+
+                // Transition the image to the layout expected by the application.
+                if (needTransition) {
+                    VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+                    barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                    if (swapchainInfo.usageFlags & XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT) {
+                        barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                    }
+                    if (swapchainInfo.usageFlags & XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
+                        barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                    }
+                    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                    barrier.image = swapchain.vk.images[i];
+                    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                    barrier.subresourceRange.baseMipLevel = 0;
+                    barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+                    barrier.subresourceRange.baseArrayLayer = 0;
+                    barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+                    sessionState.vk.dispatch.vkCmdPipelineBarrier(sessionState.vk.cmdBuffer,
+                                                                  VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                                                  VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+                                                                  0,
+                                                                  0,
+                                                                  (VkMemoryBarrier*)nullptr,
+                                                                  0,
+                                                                  (VkBufferMemoryBarrier*)nullptr,
+                                                                  1,
+                                                                  &barrier);
+                }
             }
 
+            // Execute the command list to transition images.
+            if (needTransition) {
+                sessionState.vk.dispatch.vkEndCommandBuffer(sessionState.vk.cmdBuffer);
+
+                VkSubmitInfo submitInfo{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+                submitInfo.commandBufferCount = 1;
+                submitInfo.pCommandBuffers = &sessionState.vk.cmdBuffer;
+                CHECK_VKCMD(
+                    sessionState.vk.dispatch.vkQueueSubmit(sessionState.vk.queue, 1, &submitInfo, VK_NULL_HANDLE));
+            }
+        }
+
+        void initializeOpenGLSwapchain(const Session& sessionState, Swapchain& swapchain) {
             GlContextSwitch context(sessionState);
 
-            for (auto& image : swapchainState.glImage) {
-                glDeleteTextures(1, &image);
+            std::vector<wil::unique_handle> runtimeTextureHandles;
+            getRuntimeSwapchainImages(sessionState, swapchain, runtimeTextureHandles);
+
+            const auto& swapchainInfo = swapchain.createInfo;
+
+            for (uint32_t i = 0; i < runtimeTextureHandles.size(); i++) {
+                // Import the device memory from D3D.
+                GLuint memory;
+                sessionState.gl.dispatch.glCreateMemoryObjectsEXT(1, &memory);
+                swapchain.gl.memory.push_back(memory);
+
+                size_t bytePerPixels = 0;
+                for (size_t j = 0; j < ARRAYSIZE(util::DxgiToGlFormat); j++) {
+                    if (util::DxgiToGlFormat[j].gl == swapchainInfo.format) {
+                        bytePerPixels = util::DxgiToGlFormat[j].size;
+                        break;
+                    }
+                }
+
+                // TODO: Not sure why we need to multiply by 2. Mipmapping?
+                // https://stackoverflow.com/questions/71108346/how-to-use-glimportmemorywin32handleext-to-share-an-id3d11texture2d-keyedmutex-s
+                sessionState.gl.dispatch.glImportMemoryWin32HandleEXT(memory,
+                                                                      swapchainInfo.arraySize * swapchainInfo.width *
+                                                                          swapchainInfo.height *
+                                                                          swapchainInfo.sampleCount * bytePerPixels * 2,
+                                                                      GL_HANDLE_TYPE_D3D12_RESOURCE_EXT,
+                                                                      runtimeTextureHandles[i].get());
+
+                // Create the texture that the app will use.
+                GLuint image;
+
+                if (swapchainInfo.arraySize == 1) {
+                    if (swapchainInfo.sampleCount == 1) {
+                        sessionState.gl.dispatch.glCreateTextures(GL_TEXTURE_2D, 1, &image);
+                        sessionState.gl.dispatch.glTextureStorageMem2DEXT(image,
+                                                                          swapchainInfo.mipCount,
+                                                                          (GLenum)swapchainInfo.format,
+                                                                          swapchainInfo.width,
+                                                                          swapchainInfo.height,
+                                                                          memory,
+                                                                          0);
+                    } else {
+                        sessionState.gl.dispatch.glCreateTextures(GL_TEXTURE_2D_MULTISAMPLE, 1, &image);
+                        sessionState.gl.dispatch.glTextureStorageMem2DMultisampleEXT(image,
+                                                                                     swapchainInfo.sampleCount,
+                                                                                     (GLenum)swapchainInfo.format,
+                                                                                     swapchainInfo.width,
+                                                                                     swapchainInfo.height,
+                                                                                     GL_TRUE,
+                                                                                     memory,
+                                                                                     0);
+                    }
+                } else {
+                    if (swapchainInfo.sampleCount == 1) {
+                        sessionState.gl.dispatch.glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &image);
+                        sessionState.gl.dispatch.glTextureStorageMem3DEXT(image,
+                                                                          swapchainInfo.mipCount,
+                                                                          (GLenum)swapchainInfo.format,
+                                                                          swapchainInfo.width,
+                                                                          swapchainInfo.height,
+                                                                          swapchainInfo.arraySize,
+                                                                          memory,
+                                                                          0);
+                    } else {
+                        sessionState.gl.dispatch.glCreateTextures(GL_TEXTURE_2D_MULTISAMPLE_ARRAY, 1, &image);
+                        sessionState.gl.dispatch.glTextureStorageMem3DMultisampleEXT(image,
+                                                                                     swapchainInfo.sampleCount,
+                                                                                     (GLenum)swapchainInfo.format,
+                                                                                     swapchainInfo.width,
+                                                                                     swapchainInfo.height,
+                                                                                     swapchainInfo.arraySize,
+                                                                                     GL_TRUE,
+                                                                                     memory,
+                                                                                     0);
+                    }
+                }
+                swapchain.gl.images.push_back(image);
             }
-            for (auto& memory : swapchainState.glMemory) {
-                m_glDispatch.glDeleteMemoryObjectsEXT(1, &memory);
+        }
+
+        void cleanupSwapchain(Swapchain& swapchain) {
+            const auto& sessionState = m_sessions[swapchain.xrSession];
+
+            if (sessionState.api == GfxApi::Vulkan) {
+                sessionState.vk.dispatch.vkDeviceWaitIdle(sessionState.vk.device);
+
+                for (auto& image : swapchain.vk.images) {
+                    sessionState.vk.dispatch.vkDestroyImage(sessionState.vk.device, image, m_vkAllocator);
+                }
+                for (auto& memory : swapchain.vk.deviceMemory) {
+                    sessionState.vk.dispatch.vkFreeMemory(sessionState.vk.device, memory, m_vkAllocator);
+                }
+            } else {
+                GlContextSwitch context(sessionState);
+                glFinish();
+
+                for (auto& image : swapchain.gl.images) {
+                    glDeleteTextures(1, &image);
+                }
+                for (auto& memory : swapchain.gl.memory) {
+                    sessionState.gl.dispatch.glDeleteMemoryObjectsEXT(1, &memory);
+                }
             }
         }
 
@@ -1681,60 +1780,15 @@ namespace {
         std::map<XrSession, Session> m_sessions;
         std::map<XrSwapchain, Swapchain> m_swapchains;
 
-        // We can afford to use a giant lock given that all our overlay functions are typically in control path (with
-        // the exception of xrEndFrame()).
+        // We can afford to use a giant lock given that all our overlay functions are typically in control path
+        // (with the exception of xrEndFrame()).
         std::mutex m_globalLock;
 
         // State for XR_KHR_vulkan_enable2 emulation.
         VkInstance m_vkBootstrapInstance{VK_NULL_HANDLE};
         VkPhysicalDevice m_vkBootstrapPhysicalDevice{VK_NULL_HANDLE};
-
+        PFN_vkGetInstanceProcAddr m_vkGetInstanceProcAddr{nullptr};
         const VkAllocationCallbacks* m_vkAllocator{nullptr};
-        struct {
-            PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr{nullptr};
-
-            // Pointers below must be initialized in initializeVulkanDispatch(),
-            PFN_vkGetPhysicalDeviceProperties2 vkGetPhysicalDeviceProperties2{nullptr};
-            PFN_vkGetPhysicalDeviceMemoryProperties vkGetPhysicalDeviceMemoryProperties{nullptr};
-            PFN_vkGetImageMemoryRequirements2KHR vkGetImageMemoryRequirements2KHR{nullptr};
-            PFN_vkGetDeviceQueue vkGetDeviceQueue{nullptr};
-            PFN_vkQueueSubmit vkQueueSubmit{nullptr};
-            PFN_vkCreateImage vkCreateImage{nullptr};
-            PFN_vkDestroyImage vkDestroyImage{nullptr};
-            PFN_vkAllocateMemory vkAllocateMemory{nullptr};
-            PFN_vkFreeMemory vkFreeMemory{nullptr};
-            PFN_vkCreateCommandPool vkCreateCommandPool{nullptr};
-            PFN_vkDestroyCommandPool vkDestroyCommandPool{nullptr};
-            PFN_vkAllocateCommandBuffers vkAllocateCommandBuffers{nullptr};
-            PFN_vkFreeCommandBuffers vkFreeCommandBuffers{nullptr};
-            PFN_vkBeginCommandBuffer vkBeginCommandBuffer{nullptr};
-            PFN_vkCmdPipelineBarrier vkCmdPipelineBarrier{nullptr};
-            PFN_vkEndCommandBuffer vkEndCommandBuffer{nullptr};
-            PFN_vkGetMemoryWin32HandlePropertiesKHR vkGetMemoryWin32HandlePropertiesKHR{nullptr};
-            PFN_vkBindImageMemory2KHR vkBindImageMemory2KHR{nullptr};
-            PFN_vkCreateSemaphore vkCreateSemaphore{nullptr};
-            PFN_vkDestroySemaphore vkDestroySemaphore{nullptr};
-            PFN_vkImportSemaphoreWin32HandleKHR vkImportSemaphoreWin32HandleKHR{nullptr};
-            PFN_vkDeviceWaitIdle vkDeviceWaitIdle{nullptr};
-        } m_vkDispatch;
-
-        struct {
-            // Pointers below must be initialized in initializeOpenGLDispatch(),
-            PFNGLGETUNSIGNEDBYTEVEXTPROC glGetUnsignedBytevEXT{nullptr};
-            PFNGLCREATETEXTURESPROC glCreateTextures{nullptr};
-            PFNGLCREATEMEMORYOBJECTSEXTPROC glCreateMemoryObjectsEXT{nullptr};
-            PFNGLDELETEMEMORYOBJECTSEXTPROC glDeleteMemoryObjectsEXT{nullptr};
-            PFNGLTEXTURESTORAGEMEM2DEXTPROC glTextureStorageMem2DEXT{nullptr};
-            PFNGLTEXTURESTORAGEMEM2DMULTISAMPLEEXTPROC glTextureStorageMem2DMultisampleEXT{nullptr};
-            PFNGLTEXTURESTORAGEMEM3DEXTPROC glTextureStorageMem3DEXT{nullptr};
-            PFNGLTEXTURESTORAGEMEM3DMULTISAMPLEEXTPROC glTextureStorageMem3DMultisampleEXT{nullptr};
-            PFNGLGENSEMAPHORESEXTPROC glGenSemaphoresEXT{nullptr};
-            PFNGLDELETESEMAPHORESEXTPROC glDeleteSemaphoresEXT{nullptr};
-            PFNGLSEMAPHOREPARAMETERUI64VEXTPROC glSemaphoreParameterui64vEXT{nullptr};
-            PFNGLSIGNALSEMAPHOREEXTPROC glSignalSemaphoreEXT{nullptr};
-            PFNGLIMPORTMEMORYWIN32HANDLEEXTPROC glImportMemoryWin32HandleEXT{nullptr};
-            PFNGLIMPORTSEMAPHOREWIN32HANDLEEXTPROC glImportSemaphoreWin32HandleEXT{nullptr};
-        } m_glDispatch;
     };
 
     std::unique_ptr<OpenXrLayer> g_instance = nullptr;

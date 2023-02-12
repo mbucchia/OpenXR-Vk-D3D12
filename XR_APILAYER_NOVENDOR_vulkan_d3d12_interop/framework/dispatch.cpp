@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright(c) 2021 Matthieu Bucchianeri
+// Copyright(c) 2022-2023 Matthieu Bucchianeri
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this softwareand associated documentation files(the "Software"), to deal
@@ -64,7 +64,7 @@ namespace LAYER_NAMESPACE {
             }
         }
 
-        // Remove the Vulkan extension(s) and add the D3D12 one instead (when needed).
+        // Remove the Vulkan/OpenGL extension(s) and add the D3D12 one instead (when needed).
         XrInstanceCreateInfo chainInstanceCreateInfo = *instanceCreateInfo;
         std::vector<const char*> newEnabledExtensionNames;
         bool needUseD3D12 = false;

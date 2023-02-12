@@ -207,30 +207,6 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrBeginSession(XrSession session, const XrSessionBeginInfo* beginInfo)
-	{
-		TraceLoggingWrite(g_traceProvider, "xrBeginSession");
-
-		XrResult result;
-		try
-		{
-			result = LAYER_NAMESPACE::GetInstance()->xrBeginSession(session, beginInfo);
-		}
-		catch (std::exception exc)
-		{
-			TraceLoggingWrite(g_traceProvider, "xrBeginSession_Error", TLArg(exc.what(), "Error"));
-			ErrorLog("xrBeginSession: %s\n", exc.what());
-			result = XR_ERROR_RUNTIME_FAILURE;
-		}
-
-		TraceLoggingWrite(g_traceProvider, "xrBeginSession_Result", TLArg(xr::ToCString(result), "Result"));
-		if (XR_FAILED(result)) {
-			ErrorLog("xrBeginSession failed with %s\n", xr::ToCString(result));
-		}
-
-		return result;
-	}
-
 	XrResult xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrEndFrame");
@@ -518,11 +494,6 @@ namespace LAYER_NAMESPACE
 		{
 			m_xrEnumerateSwapchainImages = reinterpret_cast<PFN_xrEnumerateSwapchainImages>(*function);
 			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrEnumerateSwapchainImages);
-		}
-		else if (apiName == "xrBeginSession")
-		{
-			m_xrBeginSession = reinterpret_cast<PFN_xrBeginSession>(*function);
-			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrBeginSession);
 		}
 		else if (apiName == "xrEndFrame")
 		{
