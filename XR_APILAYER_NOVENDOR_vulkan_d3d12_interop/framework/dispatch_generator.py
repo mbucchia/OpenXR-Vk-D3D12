@@ -19,7 +19,6 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-
 import os
 import re
 import sys
@@ -162,7 +161,7 @@ namespace LAYER_NAMESPACE
 
                 if cur_cmd.return_type is not None:
                     generated += f'''
-	XrResult {cur_cmd.name}({parameters_list})
+	XrResult XRAPI_CALL {cur_cmd.name}({parameters_list})
 	{{
 		TraceLoggingWrite(g_traceProvider, "{cur_cmd.name}");
 
@@ -188,7 +187,7 @@ namespace LAYER_NAMESPACE
 '''
                 else:
                     generated += f'''
-	void {cur_cmd.name}({parameters_list})
+	void XRAPI_CALL {cur_cmd.name}({parameters_list})
 	{{
 		TraceLoggingWrite(g_traceProvider, "{cur_cmd.name}");
 
@@ -225,7 +224,7 @@ namespace LAYER_NAMESPACE
 		return XR_SUCCESS;
 	}'''
 
-        return generated;
+        return generated
 
     def genGetInstanceProcAddr(self):
         generated = '''	XrResult OpenXrApi::xrGetInstanceProcAddr(XrInstance instance, const char* name, PFN_xrVoidFunction* function)
@@ -385,8 +384,7 @@ if __name__ == '__main__':
     extensionsPat = makeREstring(['XR_KHR_vulkan_enable', 'XR_KHR_vulkan_enable2', 'XR_KHR_opengl_enable'])
 
     registry.setGenerator(DispatchGenCppOutputGenerator(diagFile=None))
-    registry.apiGen(AutomaticSourceGeneratorOptions(
-            conventions       = conventions,
+    registry.apiGen(AutomaticSourceGeneratorOptions(conventions       = conventions,
             filename          = 'dispatch.gen.cpp',
             directory         = cur_dir,
             apiname           = 'openxr',
@@ -399,8 +397,7 @@ if __name__ == '__main__':
             emitExtensions    = extensionsPat))
 
     registry.setGenerator(DispatchGenHOutputGenerator(diagFile=None))
-    registry.apiGen(AutomaticSourceGeneratorOptions(
-            conventions       = conventions,
+    registry.apiGen(AutomaticSourceGeneratorOptions(conventions       = conventions,
             filename          = 'dispatch.gen.h',
             directory         = cur_dir,
             apiname           = 'openxr',

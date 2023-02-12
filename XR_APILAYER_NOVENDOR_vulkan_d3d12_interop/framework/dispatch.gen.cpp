@@ -39,7 +39,7 @@ namespace LAYER_NAMESPACE
 
 	// Auto-generated wrappers for the requested APIs.
 
-	XrResult xrGetSystem(XrInstance instance, const XrSystemGetInfo* getInfo, XrSystemId* systemId)
+	XrResult XRAPI_CALL xrGetSystem(XrInstance instance, const XrSystemGetInfo* getInfo, XrSystemId* systemId)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrGetSystem");
 
@@ -63,7 +63,7 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrCreateSession(XrInstance instance, const XrSessionCreateInfo* createInfo, XrSession* session)
+	XrResult XRAPI_CALL xrCreateSession(XrInstance instance, const XrSessionCreateInfo* createInfo, XrSession* session)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrCreateSession");
 
@@ -87,7 +87,7 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrDestroySession(XrSession session)
+	XrResult XRAPI_CALL xrDestroySession(XrSession session)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrDestroySession");
 
@@ -111,7 +111,7 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrEnumerateSwapchainFormats(XrSession session, uint32_t formatCapacityInput, uint32_t* formatCountOutput, int64_t* formats)
+	XrResult XRAPI_CALL xrEnumerateSwapchainFormats(XrSession session, uint32_t formatCapacityInput, uint32_t* formatCountOutput, int64_t* formats)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrEnumerateSwapchainFormats");
 
@@ -135,7 +135,7 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrCreateSwapchain(XrSession session, const XrSwapchainCreateInfo* createInfo, XrSwapchain* swapchain)
+	XrResult XRAPI_CALL xrCreateSwapchain(XrSession session, const XrSwapchainCreateInfo* createInfo, XrSwapchain* swapchain)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrCreateSwapchain");
 
@@ -159,7 +159,7 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrDestroySwapchain(XrSwapchain swapchain)
+	XrResult XRAPI_CALL xrDestroySwapchain(XrSwapchain swapchain)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrDestroySwapchain");
 
@@ -183,7 +183,7 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrEnumerateSwapchainImages(XrSwapchain swapchain, uint32_t imageCapacityInput, uint32_t* imageCountOutput, XrSwapchainImageBaseHeader* images)
+	XrResult XRAPI_CALL xrEnumerateSwapchainImages(XrSwapchain swapchain, uint32_t imageCapacityInput, uint32_t* imageCountOutput, XrSwapchainImageBaseHeader* images)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrEnumerateSwapchainImages");
 
@@ -207,7 +207,7 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo)
+	XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrEndFrame");
 
@@ -231,7 +231,7 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrGetOpenGLGraphicsRequirementsKHR(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsOpenGLKHR* graphicsRequirements)
+	XrResult XRAPI_CALL xrGetOpenGLGraphicsRequirementsKHR(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsOpenGLKHR* graphicsRequirements)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrGetOpenGLGraphicsRequirementsKHR");
 
@@ -255,7 +255,7 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrGetVulkanInstanceExtensionsKHR(XrInstance instance, XrSystemId systemId, uint32_t bufferCapacityInput, uint32_t* bufferCountOutput, char* buffer)
+	XrResult XRAPI_CALL xrGetVulkanInstanceExtensionsKHR(XrInstance instance, XrSystemId systemId, uint32_t bufferCapacityInput, uint32_t* bufferCountOutput, char* buffer)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrGetVulkanInstanceExtensionsKHR");
 
@@ -279,7 +279,7 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrGetVulkanDeviceExtensionsKHR(XrInstance instance, XrSystemId systemId, uint32_t bufferCapacityInput, uint32_t* bufferCountOutput, char* buffer)
+	XrResult XRAPI_CALL xrGetVulkanDeviceExtensionsKHR(XrInstance instance, XrSystemId systemId, uint32_t bufferCapacityInput, uint32_t* bufferCountOutput, char* buffer)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrGetVulkanDeviceExtensionsKHR");
 
@@ -303,7 +303,7 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrGetVulkanGraphicsDeviceKHR(XrInstance instance, XrSystemId systemId, VkInstance vkInstance, VkPhysicalDevice* vkPhysicalDevice)
+	XrResult XRAPI_CALL xrGetVulkanGraphicsDeviceKHR(XrInstance instance, XrSystemId systemId, VkInstance vkInstance, VkPhysicalDevice* vkPhysicalDevice)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrGetVulkanGraphicsDeviceKHR");
 
@@ -327,7 +327,7 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrGetVulkanGraphicsRequirementsKHR(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsVulkanKHR* graphicsRequirements)
+	XrResult XRAPI_CALL xrGetVulkanGraphicsRequirementsKHR(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsVulkanKHR* graphicsRequirements)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrGetVulkanGraphicsRequirementsKHR");
 
@@ -351,7 +351,7 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrCreateVulkanInstanceKHR(XrInstance instance, const XrVulkanInstanceCreateInfoKHR* createInfo, VkInstance* vulkanInstance, VkResult* vulkanResult)
+	XrResult XRAPI_CALL xrCreateVulkanInstanceKHR(XrInstance instance, const XrVulkanInstanceCreateInfoKHR* createInfo, VkInstance* vulkanInstance, VkResult* vulkanResult)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrCreateVulkanInstanceKHR");
 
@@ -375,7 +375,7 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrCreateVulkanDeviceKHR(XrInstance instance, const XrVulkanDeviceCreateInfoKHR* createInfo, VkDevice* vulkanDevice, VkResult* vulkanResult)
+	XrResult XRAPI_CALL xrCreateVulkanDeviceKHR(XrInstance instance, const XrVulkanDeviceCreateInfoKHR* createInfo, VkDevice* vulkanDevice, VkResult* vulkanResult)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrCreateVulkanDeviceKHR");
 
@@ -399,7 +399,7 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrGetVulkanGraphicsDevice2KHR(XrInstance instance, const XrVulkanGraphicsDeviceGetInfoKHR* getInfo, VkPhysicalDevice* vulkanPhysicalDevice)
+	XrResult XRAPI_CALL xrGetVulkanGraphicsDevice2KHR(XrInstance instance, const XrVulkanGraphicsDeviceGetInfoKHR* getInfo, VkPhysicalDevice* vulkanPhysicalDevice)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrGetVulkanGraphicsDevice2KHR");
 
@@ -423,7 +423,7 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
-	XrResult xrGetVulkanGraphicsRequirements2KHR(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsVulkanKHR* graphicsRequirements)
+	XrResult XRAPI_CALL xrGetVulkanGraphicsRequirements2KHR(XrInstance instance, XrSystemId systemId, XrGraphicsRequirementsVulkanKHR* graphicsRequirements)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrGetVulkanGraphicsRequirements2KHR");
 
