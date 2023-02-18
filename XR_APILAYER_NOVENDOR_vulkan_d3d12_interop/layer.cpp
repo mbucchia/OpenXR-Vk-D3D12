@@ -215,7 +215,14 @@ namespace {
             TraceLoggingWrite(
                 g_traceProvider, "xrGetInstanceProcAddr", TLXArg(instance, "Instance"), TLArg(name, "Name"));
 
-            const auto result = OpenXrApi::xrGetInstanceProcAddr(instance, name, function);
+            XrResult result = OpenXrApi::xrGetInstanceProcAddr(instance, name, function);
+
+            // For conformance: mask the XR_KHR_D3D12_enable if the application did not explicitly request the
+            // extension.
+            if (std::string_view(name) == "xrGetD3D12GraphicsRequirementsKHR" && !has_XR_KHR_D3D12_enable) {
+                *function = nullptr;
+                result = XR_ERROR_FUNCTION_UNSUPPORTED;
+            }
 
             TraceLoggingWrite(g_traceProvider, "xrGetInstanceProcAddr", TLPArg(*function, "Function"));
 
@@ -244,13 +251,6 @@ namespace {
             for (uint32_t i = 0; i < createInfo->enabledExtensionCount; i++) {
                 TraceLoggingWrite(
                     g_traceProvider, "xrCreateInstance", TLArg(createInfo->enabledExtensionNames[i], "ExtensionName"));
-
-                const std::string_view ext(createInfo->enabledExtensionNames[i]);
-                if (ext == XR_KHR_VULKAN_ENABLE_EXTENSION_NAME || ext == XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME) {
-                    m_isVulkanEnabled = true;
-                } else if (ext == XR_KHR_OPENGL_ENABLE_EXTENSION_NAME) {
-                    m_isOpenGLEnabled = true;
-                }
             }
 
             // Needed to resolve the requested function pointers.
@@ -285,12 +285,13 @@ namespace {
                               TLArg(xr::ToCString(getInfo->formFactor), "FormFactor"));
 
             const XrResult result = OpenXrApi::xrGetSystem(instance, getInfo, systemId);
-            if (XR_SUCCEEDED(result) && (m_isVulkanEnabled || m_isOpenGLEnabled) &&
+            if (XR_SUCCEEDED(result) &&
+                (has_XR_KHR_vulkan_enable || has_XR_KHR_vulkan_enable2 || has_XR_KHR_opengl_enable) &&
                 getInfo->formFactor == XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY) {
                 if (!isSystemHandled(*systemId)) {
                     // Get the graphics device requirement for this system (if D3D12 is enabled).
                     PFN_xrGetD3D12GraphicsRequirementsKHR xrGetD3D12GraphicsRequirementsKHR = nullptr;
-                    if (SUCCEEDED(xrGetInstanceProcAddr(
+                    if (SUCCEEDED(OpenXrApi::xrGetInstanceProcAddr(
                             GetXrInstance(),
                             "xrGetD3D12GraphicsRequirementsKHR",
                             reinterpret_cast<PFN_xrVoidFunction*>(&xrGetD3D12GraphicsRequirementsKHR)))) {
@@ -339,7 +340,8 @@ namespace {
                               TLArg((int)systemId, "SystemId"),
                               TLArg(bufferCapacityInput, "BufferCapacityInput"));
 
-            if (!m_isVulkanEnabled) {
+            // This function is used by our XR_KHR_vulkan_enable2 wrapper.
+            if (!has_XR_KHR_vulkan_enable && !has_XR_KHR_vulkan_enable2) {
                 return XR_ERROR_FUNCTION_UNSUPPORTED;
             }
 
@@ -382,7 +384,8 @@ namespace {
                               TLArg((int)systemId, "SystemId"),
                               TLArg(bufferCapacityInput, "BufferCapacityInput"));
 
-            if (!m_isVulkanEnabled) {
+            // This function is used by our XR_KHR_vulkan_enable2 wrapper.
+            if (!has_XR_KHR_vulkan_enable && !has_XR_KHR_vulkan_enable2) {
                 return XR_ERROR_FUNCTION_UNSUPPORTED;
             }
 
@@ -418,7 +421,8 @@ namespace {
                               TLArg((int)systemId, "SystemId"),
                               TLPArg(vkInstance, "VkInstance"));
 
-            if (!m_isVulkanEnabled) {
+            // This function is used by our XR_KHR_vulkan_enable2 wrapper.
+            if (!has_XR_KHR_vulkan_enable && !has_XR_KHR_vulkan_enable2) {
                 return XR_ERROR_FUNCTION_UNSUPPORTED;
             }
 
@@ -481,7 +485,7 @@ namespace {
                               TLArg((int)createInfo->createFlags, "CreateFlags"),
                               TLPArg(createInfo->pfnGetInstanceProcAddr, "GetInstanceProcAddr"));
 
-            if (!m_isVulkanEnabled) {
+            if (!has_XR_KHR_vulkan_enable2) {
                 return XR_ERROR_FUNCTION_UNSUPPORTED;
             }
 
@@ -548,7 +552,7 @@ namespace {
                               TLPArg(createInfo->pfnGetInstanceProcAddr, "GetInstanceProcAddr"),
                               TLPArg(createInfo->vulkanPhysicalDevice, "VkPhysicalDevice"));
 
-            if (!m_isVulkanEnabled) {
+            if (!has_XR_KHR_vulkan_enable2) {
                 return XR_ERROR_FUNCTION_UNSUPPORTED;
             }
 
@@ -623,7 +627,7 @@ namespace {
                               TLArg((int)getInfo->systemId, "SystemId"),
                               TLPArg(getInfo->vulkanInstance, "VkInstance"));
 
-            if (!m_isVulkanEnabled) {
+            if (!has_XR_KHR_vulkan_enable2) {
                 return XR_ERROR_FUNCTION_UNSUPPORTED;
             }
 
@@ -658,7 +662,7 @@ namespace {
                               TLXArg(instance, "Instance"),
                               TLArg((int)systemId, "SystemId"));
 
-            if (!m_isVulkanEnabled) {
+            if (!has_XR_KHR_vulkan_enable) {
                 return XR_ERROR_FUNCTION_UNSUPPORTED;
             }
 
@@ -668,7 +672,7 @@ namespace {
 
             // Require Vulkan 1.1 at minimum.
             // See https://github.com/mbucchia/OpenXR-Vk-D3D12/issues/3
-            graphicsRequirements->minApiVersionSupported = XR_MAKE_VERSION(1, 1, 0);
+            graphicsRequirements->minApiVersionSupported = XR_MAKE_VERSION(1, 0, 0);
             graphicsRequirements->maxApiVersionSupported = XR_MAKE_VERSION(2, 0, 0);
 
             m_graphicsRequirementQueried = true;
@@ -687,7 +691,39 @@ namespace {
         XrResult xrGetVulkanGraphicsRequirements2KHR(XrInstance instance,
                                                      XrSystemId systemId,
                                                      XrGraphicsRequirementsVulkanKHR* graphicsRequirements) override {
-            return xrGetVulkanGraphicsRequirementsKHR(instance, systemId, graphicsRequirements);
+            if (graphicsRequirements->type != XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR) {
+                return XR_ERROR_VALIDATION_FAILURE;
+            }
+
+            std::unique_lock lock(m_globalLock);
+
+            TraceLoggingWrite(g_traceProvider,
+                              "xrGetVulkanGraphicsRequirements2KHR",
+                              TLXArg(instance, "Instance"),
+                              TLArg((int)systemId, "SystemId"));
+
+            if (!has_XR_KHR_vulkan_enable2) {
+                return XR_ERROR_FUNCTION_UNSUPPORTED;
+            }
+
+            if (!isSystemHandled(systemId)) {
+                return XR_ERROR_SYSTEM_INVALID;
+            }
+
+            // Require Vulkan 1.1 at minimum.
+            // See https://github.com/mbucchia/OpenXR-Vk-D3D12/issues/3
+            graphicsRequirements->minApiVersionSupported = XR_MAKE_VERSION(1, 0, 0);
+            graphicsRequirements->maxApiVersionSupported = XR_MAKE_VERSION(2, 0, 0);
+
+            m_graphicsRequirementQueried = true;
+
+            TraceLoggingWrite(
+                g_traceProvider,
+                "xrGetVulkanGraphicsRequirements2KHR",
+                TLArg(xr::ToString(graphicsRequirements->minApiVersionSupported).c_str(), "MinApiVersionSupported"),
+                TLArg(xr::ToString(graphicsRequirements->maxApiVersionSupported).c_str(), "MaxApiVersionSupported"));
+
+            return XR_SUCCESS;
         }
 
         // XR_KHR_opengl_enable
@@ -706,7 +742,7 @@ namespace {
                               TLXArg(instance, "Instance"),
                               TLArg((int)systemId, "SystemId"));
 
-            if (!m_isOpenGLEnabled) {
+            if (!has_XR_KHR_opengl_enable) {
                 return XR_ERROR_FUNCTION_UNSUPPORTED;
             }
 
@@ -809,6 +845,47 @@ namespace {
             return result;
         }
 
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrEnumerateViewConfigurationViews
+        XrResult xrEnumerateViewConfigurationViews(XrInstance instance,
+                                                   XrSystemId systemId,
+                                                   XrViewConfigurationType viewConfigurationType,
+                                                   uint32_t viewCapacityInput,
+                                                   uint32_t* viewCountOutput,
+                                                   XrViewConfigurationView* views) override {
+            TraceLoggingWrite(g_traceProvider,
+                              "xrEnumerateViewConfigurationViews",
+                              TLXArg(instance, "Instance"),
+                              TLArg((int)systemId, "SystemId"),
+                              TLArg(viewCapacityInput, "ViewCapacityInput"),
+                              TLArg(xr::ToCString(viewConfigurationType), "ViewConfigurationType"));
+
+            const XrResult result = OpenXrApi::xrEnumerateViewConfigurationViews(
+                instance, systemId, viewConfigurationType, viewCapacityInput, viewCountOutput, views);
+            if (XR_SUCCEEDED(result) && isSystemHandled(systemId) && viewCapacityInput) {
+                for (uint32_t i = 0; i < *viewCountOutput; i++) {
+                    // Un-advertise MSAA swapchains, since they are not shareable cross-adapter. They are also not
+                    // commonly used.
+                    views[i].maxSwapchainSampleCount = 1;
+                }
+            }
+
+            TraceLoggingWrite(
+                g_traceProvider, "xrEnumerateViewConfigurationViews", TLArg(*viewCountOutput, "ViewCountOutput"));
+
+            for (uint32_t i = 0; i < *viewCountOutput; i++) {
+                TraceLoggingWrite(g_traceProvider,
+                                  "xrEnumerateViewConfigurationViews",
+                                  TLArg(views[i].maxImageRectWidth, "MaxImageRectWidth"),
+                                  TLArg(views[i].maxImageRectHeight, "MaxImageRectHeight"),
+                                  TLArg(views[i].maxSwapchainSampleCount, "MaxSwapchainSampleCount"),
+                                  TLArg(views[i].recommendedImageRectWidth, "RecommendedImageRectWidth"),
+                                  TLArg(views[i].recommendedImageRectHeight, "RecommendedImageRectHeight"),
+                                  TLArg(views[i].recommendedSwapchainSampleCount, "RecommendedSwapchainSampleCount"));
+            }
+
+            return result;
+        }
+
         // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrCreateSession
         XrResult xrCreateSession(XrInstance instance,
                                  const XrSessionCreateInfo* createInfo,
@@ -830,13 +907,18 @@ namespace {
             newSession.xrInstance = instance;
             bool handled = false;
 
+            // We will patch the pointer and restore it later.
+            const XrBaseInStructure* const* patchedNext =
+                reinterpret_cast<const XrBaseInStructure* const*>(&createInfo->next);
+            const XrBaseInStructure* oldNext = nullptr;
+
             if (isSystemHandled(createInfo->systemId)) {
-                const XrBaseInStructure* const* pprev =
-                    reinterpret_cast<const XrBaseInStructure* const*>(&createInfo->next);
                 const XrBaseInStructure* entry = reinterpret_cast<const XrBaseInStructure*>(createInfo->next);
                 while (entry) {
-                    const bool isVulkan = m_isVulkanEnabled && entry->type == XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR;
-                    const bool isOpenGL = m_isOpenGLEnabled && entry->type == XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR;
+                    const bool isVulkan = (has_XR_KHR_vulkan_enable || has_XR_KHR_vulkan_enable2) &&
+                                          entry->type == XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR;
+                    const bool isOpenGL =
+                        has_XR_KHR_opengl_enable && entry->type == XR_TYPE_GRAPHICS_BINDING_OPENGL_WIN32_KHR;
 
                     if (isVulkan || isOpenGL) {
                         if (!m_graphicsRequirementQueried) {
@@ -894,8 +976,11 @@ namespace {
                         }
 
                         // Fill out the struct that we are passing to the OpenXR runtime.
-                        // TODO: Do not write to the const struct!
-                        *const_cast<XrBaseInStructure**>(pprev) = reinterpret_cast<XrBaseInStructure*>(&d3dBindings);
+                        // It is not very clean to be patching a const structure, but this is the easiest method. We
+                        // will restore the previous content before exiting the function.
+                        oldNext = *patchedNext;
+                        *const_cast<XrBaseInStructure**>(patchedNext) =
+                            reinterpret_cast<XrBaseInStructure*>(&d3dBindings);
                         d3dBindings.next = entry->next;
                         d3dBindings.device = newSession.runtimeDevice.Get();
                         d3dBindings.queue = newSession.runtimeQueue.Get();
@@ -905,6 +990,7 @@ namespace {
                         break;
                     }
 
+                    patchedNext = &entry->next;
                     entry = entry->next;
                 }
             }
@@ -919,6 +1005,8 @@ namespace {
                 } else {
                     cleanupSession(newSession);
                 }
+
+                *const_cast<const XrBaseInStructure**>(patchedNext) = oldNext;
             }
 
             if (XR_SUCCEEDED(result)) {
@@ -1781,9 +1869,6 @@ namespace {
         bool isSwapchainHandled(XrSwapchain swapchain) const {
             return m_swapchains.find(swapchain) != m_swapchains.cend();
         }
-
-        bool m_isVulkanEnabled{false};
-        bool m_isOpenGLEnabled{false};
 
         XrSystemId m_systemId{XR_NULL_SYSTEM_ID};
         bool m_graphicsRequirementQueried{false};

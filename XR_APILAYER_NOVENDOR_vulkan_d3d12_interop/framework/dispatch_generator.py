@@ -209,7 +209,21 @@ namespace LAYER_NAMESPACE
 
     def genCreateInstance(self):
         generated = '''	XrResult OpenXrApi::xrCreateInstance(const XrInstanceCreateInfo* createInfo)
-    {
+	{
+		for (uint32_t i = 0; i < createInfo->enabledExtensionCount; i++) {
+			const std::string_view ext(createInfo->enabledExtensionNames[i]);
+			if (false) {
+			}
+'''
+
+        for extension in layer_apis.supported_extensions:
+                generated += f'''			else if (ext == "{extension}") {{
+				has_{extension} = true;
+			}}
+'''
+
+        generated += '''
+		}
 '''
 
         for cur_cmd in self.core_commands + self.ext_commands:
@@ -229,6 +243,7 @@ namespace LAYER_NAMESPACE
     def genGetInstanceProcAddr(self):
         generated = '''	XrResult OpenXrApi::xrGetInstanceProcAddr(XrInstance instance, const char* name, PFN_xrVoidFunction* function)
 	{
+		*function = nullptr;
 		XrResult result = m_xrGetInstanceProcAddr(instance, name, function);
 
 		const std::string apiName(name);
@@ -249,12 +264,10 @@ namespace LAYER_NAMESPACE
 		}}
 '''
 
-        # Always advertise extension functions.
         for cur_cmd in self.ext_commands:
             if cur_cmd.name in layer_apis.override_functions:
-                generated += f'''		else if (apiName == "{cur_cmd.name}")
-		{{
-			m_{cur_cmd.name} = reinterpret_cast<PFN_{cur_cmd.name}>(*function);
+                requirements = " && ".join([f"has_{required_ext}" for required_ext in cur_cmd.required_exts])
+                generated += f'''		else if ({requirements} && apiName == "{cur_cmd.name}") {{
 			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::{cur_cmd.name});
 			result = XR_SUCCESS;
 		}}
@@ -320,6 +333,8 @@ namespace LAYER_NAMESPACE
     def endFile(self):
         generated_virtual_methods = self.genVirtualMethods()
 
+        generated_extensions_properties = "\n".join([f'''		bool has_{extension}{{false}};''' for extension in layer_apis.supported_extensions])
+
         postamble = '''
 	};
 
@@ -329,6 +344,10 @@ namespace LAYER_NAMESPACE
         contents = f'''
 		// Auto-generated entries for the requested APIs.
 {generated_virtual_methods}
+
+	protected:
+		// Auto-generated extension properties.
+{generated_extensions_properties}
 
 {postamble}'''
 
@@ -381,7 +400,7 @@ if __name__ == '__main__':
 
     conventions = OpenXRConventions()
     featuresPat = 'XR_VERSION_1_0'
-    extensionsPat = makeREstring(['XR_KHR_vulkan_enable', 'XR_KHR_vulkan_enable2', 'XR_KHR_opengl_enable'])
+    extensionsPat = makeREstring(layer_apis.supported_extensions)
 
     registry.setGenerator(DispatchGenCppOutputGenerator(diagFile=None))
     registry.apiGen(AutomaticSourceGeneratorOptions(conventions       = conventions,

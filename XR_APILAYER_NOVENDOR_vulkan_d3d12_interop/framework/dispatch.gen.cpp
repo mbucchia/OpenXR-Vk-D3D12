@@ -111,6 +111,30 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
+	XrResult XRAPI_CALL xrEnumerateViewConfigurationViews(XrInstance instance, XrSystemId systemId, XrViewConfigurationType viewConfigurationType, uint32_t viewCapacityInput, uint32_t* viewCountOutput, XrViewConfigurationView* views)
+	{
+		TraceLoggingWrite(g_traceProvider, "xrEnumerateViewConfigurationViews");
+
+		XrResult result;
+		try
+		{
+			result = LAYER_NAMESPACE::GetInstance()->xrEnumerateViewConfigurationViews(instance, systemId, viewConfigurationType, viewCapacityInput, viewCountOutput, views);
+		}
+		catch (std::exception exc)
+		{
+			TraceLoggingWrite(g_traceProvider, "xrEnumerateViewConfigurationViews_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrEnumerateViewConfigurationViews: %s\n", exc.what());
+			result = XR_ERROR_RUNTIME_FAILURE;
+		}
+
+		TraceLoggingWrite(g_traceProvider, "xrEnumerateViewConfigurationViews_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrEnumerateViewConfigurationViews failed with %s\n", xr::ToCString(result));
+		}
+
+		return result;
+	}
+
 	XrResult XRAPI_CALL xrEnumerateSwapchainFormats(XrSession session, uint32_t formatCapacityInput, uint32_t* formatCountOutput, int64_t* formats)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrEnumerateSwapchainFormats");
@@ -451,6 +475,7 @@ namespace LAYER_NAMESPACE
 	// Auto-generated dispatcher handler.
 	XrResult OpenXrApi::xrGetInstanceProcAddr(XrInstance instance, const char* name, PFN_xrVoidFunction* function)
 	{
+		*function = nullptr;
 		XrResult result = m_xrGetInstanceProcAddr(instance, name, function);
 
 		const std::string apiName(name);
@@ -474,6 +499,11 @@ namespace LAYER_NAMESPACE
 		{
 			m_xrDestroySession = reinterpret_cast<PFN_xrDestroySession>(*function);
 			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrDestroySession);
+		}
+		else if (apiName == "xrEnumerateViewConfigurationViews")
+		{
+			m_xrEnumerateViewConfigurationViews = reinterpret_cast<PFN_xrEnumerateViewConfigurationViews>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrEnumerateViewConfigurationViews);
 		}
 		else if (apiName == "xrEnumerateSwapchainFormats")
 		{
@@ -500,57 +530,39 @@ namespace LAYER_NAMESPACE
 			m_xrEndFrame = reinterpret_cast<PFN_xrEndFrame>(*function);
 			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrEndFrame);
 		}
-		else if (apiName == "xrGetOpenGLGraphicsRequirementsKHR")
-		{
-			m_xrGetOpenGLGraphicsRequirementsKHR = reinterpret_cast<PFN_xrGetOpenGLGraphicsRequirementsKHR>(*function);
+		else if (has_XR_KHR_opengl_enable && apiName == "xrGetOpenGLGraphicsRequirementsKHR") {
 			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrGetOpenGLGraphicsRequirementsKHR);
 			result = XR_SUCCESS;
 		}
-		else if (apiName == "xrGetVulkanInstanceExtensionsKHR")
-		{
-			m_xrGetVulkanInstanceExtensionsKHR = reinterpret_cast<PFN_xrGetVulkanInstanceExtensionsKHR>(*function);
+		else if (has_XR_KHR_vulkan_enable && apiName == "xrGetVulkanInstanceExtensionsKHR") {
 			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrGetVulkanInstanceExtensionsKHR);
 			result = XR_SUCCESS;
 		}
-		else if (apiName == "xrGetVulkanDeviceExtensionsKHR")
-		{
-			m_xrGetVulkanDeviceExtensionsKHR = reinterpret_cast<PFN_xrGetVulkanDeviceExtensionsKHR>(*function);
+		else if (has_XR_KHR_vulkan_enable && apiName == "xrGetVulkanDeviceExtensionsKHR") {
 			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrGetVulkanDeviceExtensionsKHR);
 			result = XR_SUCCESS;
 		}
-		else if (apiName == "xrGetVulkanGraphicsDeviceKHR")
-		{
-			m_xrGetVulkanGraphicsDeviceKHR = reinterpret_cast<PFN_xrGetVulkanGraphicsDeviceKHR>(*function);
+		else if (has_XR_KHR_vulkan_enable && apiName == "xrGetVulkanGraphicsDeviceKHR") {
 			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrGetVulkanGraphicsDeviceKHR);
 			result = XR_SUCCESS;
 		}
-		else if (apiName == "xrGetVulkanGraphicsRequirementsKHR")
-		{
-			m_xrGetVulkanGraphicsRequirementsKHR = reinterpret_cast<PFN_xrGetVulkanGraphicsRequirementsKHR>(*function);
+		else if (has_XR_KHR_vulkan_enable && apiName == "xrGetVulkanGraphicsRequirementsKHR") {
 			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrGetVulkanGraphicsRequirementsKHR);
 			result = XR_SUCCESS;
 		}
-		else if (apiName == "xrCreateVulkanInstanceKHR")
-		{
-			m_xrCreateVulkanInstanceKHR = reinterpret_cast<PFN_xrCreateVulkanInstanceKHR>(*function);
+		else if (has_XR_KHR_vulkan_enable2 && apiName == "xrCreateVulkanInstanceKHR") {
 			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrCreateVulkanInstanceKHR);
 			result = XR_SUCCESS;
 		}
-		else if (apiName == "xrCreateVulkanDeviceKHR")
-		{
-			m_xrCreateVulkanDeviceKHR = reinterpret_cast<PFN_xrCreateVulkanDeviceKHR>(*function);
+		else if (has_XR_KHR_vulkan_enable2 && apiName == "xrCreateVulkanDeviceKHR") {
 			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrCreateVulkanDeviceKHR);
 			result = XR_SUCCESS;
 		}
-		else if (apiName == "xrGetVulkanGraphicsDevice2KHR")
-		{
-			m_xrGetVulkanGraphicsDevice2KHR = reinterpret_cast<PFN_xrGetVulkanGraphicsDevice2KHR>(*function);
+		else if (has_XR_KHR_vulkan_enable2 && apiName == "xrGetVulkanGraphicsDevice2KHR") {
 			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrGetVulkanGraphicsDevice2KHR);
 			result = XR_SUCCESS;
 		}
-		else if (apiName == "xrGetVulkanGraphicsRequirements2KHR")
-		{
-			m_xrGetVulkanGraphicsRequirements2KHR = reinterpret_cast<PFN_xrGetVulkanGraphicsRequirements2KHR>(*function);
+		else if (has_XR_KHR_vulkan_enable2 && apiName == "xrGetVulkanGraphicsRequirements2KHR") {
 			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrGetVulkanGraphicsRequirements2KHR);
 			result = XR_SUCCESS;
 		}
@@ -561,7 +573,25 @@ namespace LAYER_NAMESPACE
 
 	// Auto-generated create instance handler.
 	XrResult OpenXrApi::xrCreateInstance(const XrInstanceCreateInfo* createInfo)
-    {
+	{
+		for (uint32_t i = 0; i < createInfo->enabledExtensionCount; i++) {
+			const std::string_view ext(createInfo->enabledExtensionNames[i]);
+			if (false) {
+			}
+			else if (ext == "XR_KHR_vulkan_enable") {
+				has_XR_KHR_vulkan_enable = true;
+			}
+			else if (ext == "XR_KHR_vulkan_enable2") {
+				has_XR_KHR_vulkan_enable2 = true;
+			}
+			else if (ext == "XR_KHR_opengl_enable") {
+				has_XR_KHR_opengl_enable = true;
+			}
+			else if (ext == "XR_KHR_D3D12_enable") {
+				has_XR_KHR_D3D12_enable = true;
+			}
+
+		}
 		if (XR_FAILED(m_xrGetInstanceProcAddr(m_instance, "xrGetInstanceProperties", reinterpret_cast<PFN_xrVoidFunction*>(&m_xrGetInstanceProperties))))
 		{
 			throw new std::runtime_error("Failed to resolve xrGetInstanceProperties");

@@ -2,6 +2,7 @@
 override_functions = [
     "xrGetSystem",
     "xrEnumerateSwapchainFormats",
+    "xrEnumerateViewConfigurationViews",
     "xrCreateSession",
     "xrDestroySession",
     "xrCreateSwapchain",
@@ -26,3 +27,6 @@ requested_functions = [
     "xrGetSystemProperties",
     "xrGetViewConfigurationProperties"
 ]
+
+# The list of OpenXR extensions our layer may expose.
+supported_extensions = ['XR_KHR_vulkan_enable', 'XR_KHR_vulkan_enable2', 'XR_KHR_opengl_enable', 'XR_KHR_D3D12_enable']

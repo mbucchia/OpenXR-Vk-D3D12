@@ -124,6 +124,14 @@ namespace LAYER_NAMESPACE
 		PFN_xrGetViewConfigurationProperties m_xrGetViewConfigurationProperties{ nullptr };
 
 	public:
+		virtual XrResult xrEnumerateViewConfigurationViews(XrInstance instance, XrSystemId systemId, XrViewConfigurationType viewConfigurationType, uint32_t viewCapacityInput, uint32_t* viewCountOutput, XrViewConfigurationView* views)
+		{
+			return m_xrEnumerateViewConfigurationViews(instance, systemId, viewConfigurationType, viewCapacityInput, viewCountOutput, views);
+		}
+	private:
+		PFN_xrEnumerateViewConfigurationViews m_xrEnumerateViewConfigurationViews{ nullptr };
+
+	public:
 		virtual XrResult xrEnumerateSwapchainFormats(XrSession session, uint32_t formatCapacityInput, uint32_t* formatCountOutput, int64_t* formats)
 		{
 			return m_xrEnumerateSwapchainFormats(session, formatCapacityInput, formatCountOutput, formats);
@@ -235,6 +243,13 @@ namespace LAYER_NAMESPACE
 	private:
 		PFN_xrGetVulkanGraphicsRequirements2KHR m_xrGetVulkanGraphicsRequirements2KHR{ nullptr };
 
+
+	protected:
+		// Auto-generated extension properties.
+		bool has_XR_KHR_vulkan_enable{false};
+		bool has_XR_KHR_vulkan_enable2{false};
+		bool has_XR_KHR_opengl_enable{false};
+		bool has_XR_KHR_D3D12_enable{false};
 
 
 	};
