@@ -68,10 +68,10 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "FileVersion", "0.0.1.0"
-            VALUE "InternalName", "XR_APILAYER_NOVENDOR_vulkan_d3d12_interop.dll"
+            VALUE "InternalName", "XR_APILAYER_MBUCCHIA_vulkan_d3d12_interop.dll"
             VALUE "LegalCopyright", "Copyright �2022-2023 Matthieu Bucchianeri"
-            VALUE "OriginalFilename", "XR_APILAYER_NOVENDOR_vulkan_d3d12_interop.dll"
-            VALUE "ProductName", "XR_APILAYER_NOVENDOR_vulkan_d3d12_interop"
+            VALUE "OriginalFilename", "XR_APILAYER_MBUCCHIA_vulkan_d3d12_interop.dll"
+            VALUE "ProductName", "XR_APILAYER_MBUCCHIA_vulkan_d3d12_interop"
             VALUE "ProductVersion", "0.0.1.0"
         END
     END

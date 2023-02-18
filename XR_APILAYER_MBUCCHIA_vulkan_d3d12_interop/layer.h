@@ -26,7 +26,7 @@
 
 namespace vulkan_d3d12_interop {
 
-    const std::string LayerName = "XR_APILAYER_NOVENDOR_vulkan_d3d12_interop";
+    const std::string LayerName = "XR_APILAYER_MBUCCHIA_vulkan_d3d12_interop";
 
 #include "version.h"
 

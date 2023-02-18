@@ -8,7 +8,7 @@ DISCLAIMER: This software is distributed as-is, without any warranties or condit
 
 Download the latest version from the [Releases page](https://github.com/mbucchia/OpenXR-Vk-D3D12/releases). Find the installer program under **Assets**, file `OpenXR-Vk-D3D12.msi`.
 
-For troubleshooting, the log file can be found at `%LocalAppData%\XR_APILAYER_NOVENDOR_vulkan_d3d12_interop.log`.
+For troubleshooting, the log file can be found at `%LocalAppData%\XR_APILAYER_MBUCCHIA_vulkan_d3d12_interop.log`.
 
 ## Limitations
 

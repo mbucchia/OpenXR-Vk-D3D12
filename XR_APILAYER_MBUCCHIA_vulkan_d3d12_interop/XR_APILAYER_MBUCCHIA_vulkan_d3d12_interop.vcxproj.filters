@@ -57,7 +57,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="XR_APILAYER_NOVENDOR_vulkan_d3d12_interop.json" />
+    <None Include="XR_APILAYER_MBUCCHIA_vulkan_d3d12_interop.json" />
     <None Include="framework\dispatch_generator.py">
       <Filter>Framework</Filter>
     </None>
@@ -65,7 +65,7 @@
       <Filter>Framework</Filter>
     </None>
     <None Include="packages.config" />
-    <None Include="XR_APILAYER_NOVENDOR_vulkan_d3d12_interop-32.json" />
+    <None Include="XR_APILAYER_MBUCCHIA_vulkan_d3d12_interop-32.json" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />

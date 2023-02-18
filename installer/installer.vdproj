@@ -153,8 +153,8 @@
         {
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_2715EE2C11B94C579CCA74ABE2E566E8"
             {
-            "SourcePath" = "8:..\\bin\\Win32\\Release\\XR_APILAYER_NOVENDOR_vulkan_d3d12_interop-32.dll"
-            "TargetName" = "8:XR_APILAYER_NOVENDOR_vulkan_d3d12_interop-32.dll"
+            "SourcePath" = "8:..\\bin\\Win32\\Release\\XR_APILAYER_MBUCCHIA_vulkan_d3d12_interop-32.dll"
+            "TargetName" = "8:XR_APILAYER_MBUCCHIA_vulkan_d3d12_interop-32.dll"
             "Tag" = "8:"
             "Folder" = "8:_FAFEF1A1283E4B448EB32163831E71D2"
             "Condition" = "8:"
@@ -244,8 +244,8 @@
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_EAB09B8B38B34626B487E5BE00BC8DBD"
             {
-            "SourcePath" = "8:..\\bin\\x64\\Release\\XR_APILAYER_NOVENDOR_vulkan_d3d12_interop.dll"
-            "TargetName" = "8:XR_APILAYER_NOVENDOR_vulkan_d3d12_interop.dll"
+            "SourcePath" = "8:..\\bin\\x64\\Release\\XR_APILAYER_MBUCCHIA_vulkan_d3d12_interop.dll"
+            "TargetName" = "8:XR_APILAYER_MBUCCHIA_vulkan_d3d12_interop.dll"
             "Tag" = "8:"
             "Folder" = "8:_FAFEF1A1283E4B448EB32163831E71D2"
             "Condition" = "8:"
@@ -450,7 +450,7 @@
                                                                 {
                                                                     "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_6D1D2C0C7E9C406AAD91F9B6796F9CF3"
                                                                     {
-                                                                    "Name" = "8:[TARGETDIR]XR_APILAYER_NOVENDOR_vulkan_d3d12_interop.json"
+                                                                    "Name" = "8:[TARGETDIR]XR_APILAYER_MBUCCHIA_vulkan_d3d12_interop.json"
                                                                     "Condition" = "8:"
                                                                     "Transitive" = "11:FALSE"
                                                                     "ValueTypes" = "3:3"
@@ -537,7 +537,7 @@
                                                                         {
                                                                             "{ADCFDA98-8FDD-45E4-90BC-E3D20B029870}:_65C7FBE6CDC4409DA6FA4ED5F34375F2"
                                                                             {
-                                                                            "Name" = "8:[TARGETDIR]XR_APILAYER_NOVENDOR_vulkan_d3d12_interop-32.json"
+                                                                            "Name" = "8:[TARGETDIR]XR_APILAYER_MBUCCHIA_vulkan_d3d12_interop-32.json"
                                                                             "Condition" = "8:"
                                                                             "Transitive" = "11:FALSE"
                                                                             "ValueTypes" = "3:3"
