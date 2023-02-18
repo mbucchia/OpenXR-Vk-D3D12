@@ -26,9 +26,10 @@ namespace SetupCustomActions
             {
                 key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey("SOFTWARE\\Khronos\\OpenXR\\1\\ApiLayers\\Implicit");
                 var jsonName = "XR_APILAYER_MBUCCHIA_vulkan_d3d12_interop.json";
+                var altName = "XR_APILAYER_NOVENDOR_vulkan_d3d12_interop.json";
                 var jsonPath = installPath + "\\" + jsonName;
 
-                ReOrderApiLayers(key, jsonName, jsonPath);
+                ReOrderApiLayers(key, jsonName, jsonPath, altName);
 
                 key.Close();
             }
@@ -45,7 +46,7 @@ namespace SetupCustomActions
             base.OnAfterInstall(savedState);
         }
 
-        private void ReOrderApiLayers(Microsoft.Win32.RegistryKey key, string jsonName, string jsonPath)
+        private void ReOrderApiLayers(Microsoft.Win32.RegistryKey key, string jsonName, string jsonPath, string altName = null)
         {
             var existingValues = key.GetValueNames();
             var entriesValues = new Dictionary<string, object>();
@@ -60,6 +61,10 @@ namespace SetupCustomActions
             {
                 // Do not re-create our own key. We did it before this loop.
                 if (value.EndsWith("\\" + jsonName))
+                {
+                    continue;
+                }
+                if (altName != null && value.EndsWith("\\" + altName))
                 {
                     continue;
                 }
