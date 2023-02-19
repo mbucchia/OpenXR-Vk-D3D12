@@ -672,7 +672,7 @@ namespace {
 
             // Require Vulkan 1.1 at minimum.
             // See https://github.com/mbucchia/OpenXR-Vk-D3D12/issues/3
-            graphicsRequirements->minApiVersionSupported = XR_MAKE_VERSION(1, 0, 0);
+            graphicsRequirements->minApiVersionSupported = XR_MAKE_VERSION(1, 1, 0);
             graphicsRequirements->maxApiVersionSupported = XR_MAKE_VERSION(2, 0, 0);
 
             m_graphicsRequirementQueried = true;
@@ -712,7 +712,7 @@ namespace {
 
             // Require Vulkan 1.1 at minimum.
             // See https://github.com/mbucchia/OpenXR-Vk-D3D12/issues/3
-            graphicsRequirements->minApiVersionSupported = XR_MAKE_VERSION(1, 0, 0);
+            graphicsRequirements->minApiVersionSupported = XR_MAKE_VERSION(1, 1, 0);
             graphicsRequirements->maxApiVersionSupported = XR_MAKE_VERSION(2, 0, 0);
 
             m_graphicsRequirementQueried = true;
