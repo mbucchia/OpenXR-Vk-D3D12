@@ -13,7 +13,7 @@ For troubleshooting, the log file can be found at `%LocalAppData%\XR_APILAYER_MB
 ## Limitations
 
 - This has only been tested with Windows Mixed Reality.
-- This has only been tested with NVIDIA and AMD video cards.
+- This has only been tested with NVIDIA (driver version 528.49) and AMD video cards (driver version 23.2.1).
 - Vulkan support has been tested with the HelloXR sample app from Khronos, Unity 2021 and Godot 4.
 - OpenGL support has been tested with the HelloXR sample app from Khronos and X-Plane 12 Demo (using [OpenComposite](https://gitlab.com/znixian/OpenOVR/-/tree/openxr)).
 - It is compatible with [OpenXR Toolkit](https://mbucchia.github.io/OpenXR-Toolkit/).
@@ -36,6 +36,6 @@ Same principle applies to OpenGL support.
     // Chain timelineSemaphoreFeatures to your VkDeviceCreateInfo struct.
 ```
 
-- Applications using OpenGL with an OpenXR runtimes without support for mutable FOV (as reported in `XrViewConfigurationProperties`) will have rendering upside-down. The necessary code to Y-flip the image is not implemented.
+- Applications using OpenGL with an OpenXR runtimes without support for mutable FOV (as reported in `XrViewConfigurationProperties`) and applications using OpenGL and rendering quad layers will have rendering upside-down. The necessary code to Y-flip the image is not implemented.
 
 If you are having issues, please visit the [Issues page](https://github.com/mbucchia/OpenXR-Vk-D3D12/issues) to look at existing support requests or to file a new one.
