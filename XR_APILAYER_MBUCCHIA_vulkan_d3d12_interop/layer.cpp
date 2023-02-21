@@ -127,7 +127,7 @@ namespace {
 
                 // Workaround: the AMD driver does not seem to like closing the handle for the shared fence when
                 // using OpenGL. We keep it alive for the whole session.
-                wil::shared_handle fenceHandleForAMDWorkaround;
+                wil::unique_handle fenceHandleForAMDWorkaround;
 
                 struct {
                     PFNGLGETUNSIGNEDBYTEVEXTPROC glGetUnsignedBytevEXT{nullptr};
@@ -165,6 +165,10 @@ namespace {
             struct {
                 std::vector<GLuint> memory;
                 std::vector<GLuint> images;
+
+                // Workaround: the AMD driver does not seem to like closing the handle for the shared textures when
+                // using OpenGL. We keep them alive for the whole session.
+                std::vector<wil::unique_handle> textureHandlesForAMDWorkaround;
             } gl;
         };
 
@@ -1001,7 +1005,7 @@ namespace {
                     newSession.xrSession = *session;
 
                     // On success, record the state.
-                    m_sessions.insert_or_assign(*session, newSession);
+                    m_sessions.insert_or_assign(*session, std::move(newSession));
                 } else {
                     cleanupSession(newSession);
                 }
@@ -1110,7 +1114,7 @@ namespace {
                 }
 
                 // On success, record the state.
-                m_swapchains.insert_or_assign(*swapchain, newSwapchain);
+                m_swapchains.insert_or_assign(*swapchain, std::move(newSwapchain));
             }
 
             TraceLoggingWrite(g_traceProvider, "xrCreateSwapchain", TLXArg(*swapchain, "Swapchain"));
@@ -1591,7 +1595,7 @@ namespace {
                                                                     XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
             // Helper to select the memory type.
-            auto findMemoryType = [sessionState](uint32_t memoryTypeBitsRequirement, VkFlags requirementsMask) {
+            auto findMemoryType = [&sessionState](uint32_t memoryTypeBitsRequirement, VkFlags requirementsMask) {
                 for (uint32_t memoryIndex = 0; memoryIndex < VK_MAX_MEMORY_TYPES; ++memoryIndex) {
                     const uint32_t memoryTypeBits = (1 << memoryIndex);
                     const bool isRequiredMemoryType = memoryTypeBitsRequirement & memoryTypeBits;
@@ -1753,12 +1757,11 @@ namespace {
         void initializeOpenGLSwapchain(const Session& sessionState, Swapchain& swapchain) {
             GlContextSwitch context(sessionState);
 
-            std::vector<wil::unique_handle> runtimeTextureHandles;
-            getRuntimeSwapchainImages(sessionState, swapchain, runtimeTextureHandles);
+            getRuntimeSwapchainImages(sessionState, swapchain, swapchain.gl.textureHandlesForAMDWorkaround);
 
             const auto& swapchainInfo = swapchain.createInfo;
 
-            for (uint32_t i = 0; i < runtimeTextureHandles.size(); i++) {
+            for (uint32_t i = 0; i < swapchain.gl.textureHandlesForAMDWorkaround.size(); i++) {
                 // Import the device memory from D3D.
                 GLuint memory;
                 sessionState.gl.dispatch.glCreateMemoryObjectsEXT(1, &memory);
@@ -1774,12 +1777,12 @@ namespace {
 
                 // TODO: Not sure why we need to multiply by 2. Mipmapping?
                 // https://stackoverflow.com/questions/71108346/how-to-use-glimportmemorywin32handleext-to-share-an-id3d11texture2d-keyedmutex-s
-                sessionState.gl.dispatch.glImportMemoryWin32HandleEXT(memory,
-                                                                      swapchainInfo.arraySize * swapchainInfo.width *
-                                                                          swapchainInfo.height *
-                                                                          swapchainInfo.sampleCount * bytePerPixels * 2,
-                                                                      GL_HANDLE_TYPE_D3D12_RESOURCE_EXT,
-                                                                      runtimeTextureHandles[i].get());
+                sessionState.gl.dispatch.glImportMemoryWin32HandleEXT(
+                    memory,
+                    swapchainInfo.arraySize * swapchainInfo.width * swapchainInfo.height * swapchainInfo.sampleCount *
+                        bytePerPixels * 2,
+                    GL_HANDLE_TYPE_D3D12_RESOURCE_EXT,
+                    swapchain.gl.textureHandlesForAMDWorkaround[i].get());
 
                 // Create the texture that the app will use.
                 GLuint image;
