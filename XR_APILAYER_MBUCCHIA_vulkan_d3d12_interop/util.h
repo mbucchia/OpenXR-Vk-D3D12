@@ -28,7 +28,7 @@
 
 namespace xr::detail {
 
-    [[noreturn]] inline void _ThrowNVResult(VkResult vks,
+    [[noreturn]] inline void _ThrowVKResult(VkResult vks,
                                             const char* originator = nullptr,
                                             const char* sourceLocation = nullptr) {
         xr::detail::_Throw(xr::detail::_Fmt("VkStatus failure [%x]", vks), originator, sourceLocation);
@@ -38,7 +38,7 @@ namespace xr::detail {
                                   const char* originator = nullptr,
                                   const char* sourceLocation = nullptr) {
         if ((nvs) != VK_SUCCESS) {
-            xr::detail::_ThrowNVResult(nvs, originator, sourceLocation);
+            xr::detail::_ThrowVKResult(nvs, originator, sourceLocation);
         }
 
         return nvs;
