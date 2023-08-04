@@ -85,43 +85,43 @@ namespace LAYER_NAMESPACE {
             XrApiLayerCreateInfo chainApiLayerInfo = *apiLayerInfo;
             chainApiLayerInfo.nextInfo = apiLayerInfo->nextInfo->next;
 
-            CHECK_XRCMD(apiLayerInfo->nextInfo->nextCreateApiLayerInstance(
-                &dummyCreateInfo, &chainApiLayerInfo, &dummyInstance));
+            if (XR_SUCCEEDED(apiLayerInfo->nextInfo->nextCreateApiLayerInstance(
+                    &dummyCreateInfo, &chainApiLayerInfo, &dummyInstance))) {
+                // Check the available extensions.
+                PFN_xrEnumerateInstanceExtensionProperties xrEnumerateInstanceExtensionProperties;
+                CHECK_XRCMD(apiLayerInfo->nextInfo->nextGetInstanceProcAddr(
+                    dummyInstance,
+                    "xrEnumerateInstanceExtensionProperties",
+                    reinterpret_cast<PFN_xrVoidFunction*>(&xrEnumerateInstanceExtensionProperties)));
 
-            // Check the available extensions.
-            PFN_xrEnumerateInstanceExtensionProperties xrEnumerateInstanceExtensionProperties;
-            CHECK_XRCMD(apiLayerInfo->nextInfo->nextGetInstanceProcAddr(
-                dummyInstance,
-                "xrEnumerateInstanceExtensionProperties",
-                reinterpret_cast<PFN_xrVoidFunction*>(&xrEnumerateInstanceExtensionProperties)));
+                uint32_t extensionsCount = 0;
+                CHECK_XRCMD(xrEnumerateInstanceExtensionProperties(nullptr, 0, &extensionsCount, nullptr));
+                std::vector<XrExtensionProperties> extensions(extensionsCount, {XR_TYPE_EXTENSION_PROPERTIES});
+                CHECK_XRCMD(xrEnumerateInstanceExtensionProperties(
+                    nullptr, extensionsCount, &extensionsCount, extensions.data()));
 
-            uint32_t extensionsCount = 0;
-            CHECK_XRCMD(xrEnumerateInstanceExtensionProperties(nullptr, 0, &extensionsCount, nullptr));
-            std::vector<XrExtensionProperties> extensions(extensionsCount, {XR_TYPE_EXTENSION_PROPERTIES});
-            CHECK_XRCMD(
-                xrEnumerateInstanceExtensionProperties(nullptr, extensionsCount, &extensionsCount, extensions.data()));
+                for (uint32_t i = 0; i < extensionsCount; i++) {
+                    TraceLoggingWrite(g_traceProvider,
+                                      "xrCreateApiLayerInstance",
+                                      TLArg(extensions[i].extensionName, "AvailableExtension"));
+                    Log("Available extension: %s\n", extensions[i].extensionName);
+                    const std::string_view ext(extensions[i].extensionName);
 
-            for (uint32_t i = 0; i < extensionsCount; i++) {
-                TraceLoggingWrite(g_traceProvider,
-                                  "xrCreateApiLayerInstance",
-                                  TLArg(extensions[i].extensionName, "AvailableExtension"));
-                Log("Available extension: %s\n", extensions[i].extensionName);
-                const std::string_view ext(extensions[i].extensionName);
-
-                if (ext == XR_KHR_VULKAN_ENABLE_EXTENSION_NAME) {
-                    need_XR_KHR_vulkan_enable = false;
-                } else if (ext == XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME) {
-                    need_XR_KHR_vulkan_enable2 = false;
-                } else if (ext == XR_KHR_OPENGL_ENABLE_EXTENSION_NAME) {
-                    need_XR_KHR_opengl_enable = false;
+                    if (ext == XR_KHR_VULKAN_ENABLE_EXTENSION_NAME) {
+                        need_XR_KHR_vulkan_enable = false;
+                    } else if (ext == XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME) {
+                        need_XR_KHR_vulkan_enable2 = false;
+                    } else if (ext == XR_KHR_OPENGL_ENABLE_EXTENSION_NAME) {
+                        need_XR_KHR_opengl_enable = false;
+                    }
                 }
+
+                PFN_xrDestroyInstance xrDestroyInstance;
+                CHECK_XRCMD(apiLayerInfo->nextInfo->nextGetInstanceProcAddr(
+                    dummyInstance, "xrDestroyInstance", reinterpret_cast<PFN_xrVoidFunction*>(&xrDestroyInstance)));
+
+                CHECK_XRCMD(xrDestroyInstance(dummyInstance));
             }
-
-            PFN_xrDestroyInstance xrDestroyInstance;
-            CHECK_XRCMD(apiLayerInfo->nextInfo->nextGetInstanceProcAddr(
-                dummyInstance, "xrDestroyInstance", reinterpret_cast<PFN_xrVoidFunction*>(&xrDestroyInstance)));
-
-            CHECK_XRCMD(xrDestroyInstance(dummyInstance));
         }
 
         // See what extensions the application is requesting.
