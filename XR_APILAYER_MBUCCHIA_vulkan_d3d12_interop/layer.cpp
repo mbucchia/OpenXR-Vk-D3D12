@@ -823,7 +823,7 @@ namespace {
                         }
 
                         // Output the edited list if needed.
-                        if (XR_SUCCEEDED(result) && formats) {
+                        if (XR_SUCCEEDED(result) && formatCapacityInput && formats) {
                             memcpy(formats, translatedFormats.data(), translatedFormats.size() * sizeof(int64_t));
                         }
                     }
@@ -833,12 +833,10 @@ namespace {
                     OpenXrApi::xrEnumerateSwapchainFormats(session, formatCapacityInput, formatCountOutput, formats);
             }
 
-            if (XR_SUCCEEDED(result) || result == XR_ERROR_SIZE_INSUFFICIENT) {
+            if (XR_SUCCEEDED(result)) {
                 TraceLoggingWrite(
                     g_traceProvider, "xrEnumerateSwapchainFormats", TLArg(*formatCountOutput, "FormatCountOutput"));
-            }
 
-            if (XR_SUCCEEDED(result)) {
                 if (formatCapacityInput) {
                     for (uint32_t i = 0; i < *formatCountOutput; i++) {
                         TraceLoggingWrite(g_traceProvider, "xrEnumerateSwapchainFormats", TLArg(formats[i], "Format"));
@@ -865,26 +863,31 @@ namespace {
 
             const XrResult result = OpenXrApi::xrEnumerateViewConfigurationViews(
                 instance, systemId, viewConfigurationType, viewCapacityInput, viewCountOutput, views);
-            if (XR_SUCCEEDED(result) && isSystemHandled(systemId) && viewCapacityInput) {
-                for (uint32_t i = 0; i < *viewCountOutput; i++) {
-                    // Un-advertise MSAA swapchains, since they are not shareable cross-adapter. They are also not
-                    // commonly used.
-                    views[i].maxSwapchainSampleCount = 1;
+            if (XR_SUCCEEDED(result)) {
+                TraceLoggingWrite(
+                    g_traceProvider, "xrEnumerateViewConfigurationViews", TLArg(*viewCountOutput, "ViewCountOutput"));
+
+                if (viewCapacityInput) {
+                    if (isSystemHandled(systemId)) {
+                        for (uint32_t i = 0; i < *viewCountOutput; i++) {
+                            // Un-advertise MSAA swapchains, since they are not shareable cross-adapter. They are also
+                            // not commonly used.
+                            views[i].maxSwapchainSampleCount = 1;
+                        }
+                    }
+
+                    for (uint32_t i = 0; i < *viewCountOutput; i++) {
+                        TraceLoggingWrite(
+                            g_traceProvider,
+                            "xrEnumerateViewConfigurationViews",
+                            TLArg(views[i].maxImageRectWidth, "MaxImageRectWidth"),
+                            TLArg(views[i].maxImageRectHeight, "MaxImageRectHeight"),
+                            TLArg(views[i].maxSwapchainSampleCount, "MaxSwapchainSampleCount"),
+                            TLArg(views[i].recommendedImageRectWidth, "RecommendedImageRectWidth"),
+                            TLArg(views[i].recommendedImageRectHeight, "RecommendedImageRectHeight"),
+                            TLArg(views[i].recommendedSwapchainSampleCount, "RecommendedSwapchainSampleCount"));
+                    }
                 }
-            }
-
-            TraceLoggingWrite(
-                g_traceProvider, "xrEnumerateViewConfigurationViews", TLArg(*viewCountOutput, "ViewCountOutput"));
-
-            for (uint32_t i = 0; i < *viewCountOutput; i++) {
-                TraceLoggingWrite(g_traceProvider,
-                                  "xrEnumerateViewConfigurationViews",
-                                  TLArg(views[i].maxImageRectWidth, "MaxImageRectWidth"),
-                                  TLArg(views[i].maxImageRectHeight, "MaxImageRectHeight"),
-                                  TLArg(views[i].maxSwapchainSampleCount, "MaxSwapchainSampleCount"),
-                                  TLArg(views[i].recommendedImageRectWidth, "RecommendedImageRectWidth"),
-                                  TLArg(views[i].recommendedImageRectHeight, "RecommendedImageRectHeight"),
-                                  TLArg(views[i].recommendedSwapchainSampleCount, "RecommendedSwapchainSampleCount"));
             }
 
             return result;
@@ -980,8 +983,8 @@ namespace {
                         }
 
                         // Fill out the struct that we are passing to the OpenXR runtime.
-                        // It is not very clean to be patching a const structure, but this is the easiest method. We
-                        // will restore the previous content before exiting the function.
+                        // It is not very clean to be patching a const structure, but this is the easiest
+                        // method. We will restore the previous content before exiting the function.
                         oldNext = *patchedNext;
                         *const_cast<XrBaseInStructure**>(patchedNext) =
                             reinterpret_cast<XrBaseInStructure*>(&d3dBindings);
@@ -1170,35 +1173,40 @@ namespace {
                 }
 
                 if (XR_SUCCEEDED(result)) {
-                    if (sessionState.api == GfxApi::Vulkan) {
-                        XrSwapchainImageVulkanKHR* vkImages = reinterpret_cast<XrSwapchainImageVulkanKHR*>(images);
-                        for (uint32_t i = 0; i < *imageCountOutput; i++) {
-                            vkImages[i].image = swapchainState.vk.images[i];
+                    TraceLoggingWrite(
+                        g_traceProvider, "xrEnumerateSwapchainImages", TLArg(*imageCountOutput, "ImageCountOutput"));
 
-                            TraceLoggingWrite(g_traceProvider,
-                                              "xrEnumerateSwapchainImages",
-                                              TLArg("Vulkan", "Api"),
-                                              TLXArg(vkImages[i].image, "Texture"));
-                        }
-                    } else {
-                        XrSwapchainImageOpenGLKHR* glImages = reinterpret_cast<XrSwapchainImageOpenGLKHR*>(images);
-                        for (uint32_t i = 0; i < *imageCountOutput; i++) {
-                            glImages[i].image = swapchainState.gl.images[i];
+                    if (imageCapacityInput && images) {
+                        if (sessionState.api == GfxApi::Vulkan) {
+                            XrSwapchainImageVulkanKHR* vkImages = reinterpret_cast<XrSwapchainImageVulkanKHR*>(images);
+                            for (uint32_t i = 0; i < *imageCountOutput; i++) {
+                                vkImages[i].image = swapchainState.vk.images[i];
 
-                            TraceLoggingWrite(g_traceProvider,
-                                              "xrEnumerateSwapchainImages",
-                                              TLArg("OpenGL", "Api"),
-                                              TLArg(glImages[i].image, "Texture"));
+                                TraceLoggingWrite(g_traceProvider,
+                                                  "xrEnumerateSwapchainImages",
+                                                  TLArg("Vulkan", "Api"),
+                                                  TLXArg(vkImages[i].image, "Texture"));
+                            }
+                        } else {
+                            XrSwapchainImageOpenGLKHR* glImages = reinterpret_cast<XrSwapchainImageOpenGLKHR*>(images);
+                            for (uint32_t i = 0; i < *imageCountOutput; i++) {
+                                glImages[i].image = swapchainState.gl.images[i];
+
+                                TraceLoggingWrite(g_traceProvider,
+                                                  "xrEnumerateSwapchainImages",
+                                                  TLArg("OpenGL", "Api"),
+                                                  TLArg(glImages[i].image, "Texture"));
+                            }
                         }
                     }
                 }
             } else {
                 result = OpenXrApi::xrEnumerateSwapchainImages(swapchain, imageCapacityInput, imageCountOutput, images);
-            }
 
-            if (XR_SUCCEEDED(result) || result == XR_ERROR_SIZE_INSUFFICIENT) {
-                TraceLoggingWrite(
-                    g_traceProvider, "xrEnumerateSwapchainImages", TLArg(*imageCountOutput, "ImageCountOutput"));
+                if (XR_SUCCEEDED(result)) {
+                    TraceLoggingWrite(
+                        g_traceProvider, "xrEnumerateSwapchainImages", TLArg(*imageCountOutput, "ImageCountOutput"));
+                }
             }
 
             return result;
@@ -1218,8 +1226,8 @@ namespace {
                               TLArg(frameEndInfo->displayTime, "DisplayTime"),
                               TLArg(xr::ToCString(frameEndInfo->environmentBlendMode), "EnvironmentBlendMode"));
 
-            // Because the frame info is passed const, we are going to need to reconstruct a writable version of it
-            // to patch the FOV and invert the image with OpenGL.
+            // Because the frame info is passed const, we are going to need to reconstruct a writable version of
+            // it to patch the FOV and invert the image with OpenGL.
             XrFrameEndInfo chainFrameEndInfo = *frameEndInfo;
             std::vector<const XrCompositionLayerBaseHeader*> correctedLayers;
 
@@ -1229,8 +1237,8 @@ namespace {
             if (isSessionHandled(session)) {
                 auto& sessionState = m_sessions[session];
 
-                // Signal the semaphore from the Vulkan queue/OpenGL context, and wait for it on the D3D12 queue.
-                // This effectively serializes the app work between Vulkan/OpenGL and D3D12.
+                // Signal the semaphore from the Vulkan queue/OpenGL context, and wait for it on the D3D12
+                // queue. This effectively serializes the app work between Vulkan/OpenGL and D3D12.
                 sessionState.fenceValue++;
                 TraceLoggingWrite(g_traceProvider, "xrEndFrame_Sync", TLArg(sessionState.fenceValue, "FenceValue"));
                 if (sessionState.api == GfxApi::Vulkan) {
