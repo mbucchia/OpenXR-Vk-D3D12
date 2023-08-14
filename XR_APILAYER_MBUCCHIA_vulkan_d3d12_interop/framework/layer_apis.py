@@ -31,4 +31,6 @@ requested_functions = [
 ]
 
 # The list of OpenXR extensions our layer may expose.
-supported_extensions = ['XR_KHR_vulkan_enable', 'XR_KHR_vulkan_enable2', 'XR_KHR_opengl_enable', 'XR_KHR_D3D12_enable', 'XR_KHR_composition_layer_depth']
+supported_extensions = ['XR_KHR_vulkan_enable', 'XR_KHR_vulkan_enable2', 'XR_KHR_opengl_enable', 'XR_KHR_D3D12_enable',
+                        'XR_KHR_composition_layer_depth', 'XR_KHR_composition_layer_cylinder', 'XR_KHR_composition_layer_equirect',
+                        'XR_KHR_composition_layer_equirect2']

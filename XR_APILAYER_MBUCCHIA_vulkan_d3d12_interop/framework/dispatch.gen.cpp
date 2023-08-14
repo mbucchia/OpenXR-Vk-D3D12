@@ -651,6 +651,15 @@ namespace LAYER_NAMESPACE
 			else if (ext == "XR_KHR_composition_layer_depth") {
 				has_XR_KHR_composition_layer_depth = true;
 			}
+			else if (ext == "XR_KHR_composition_layer_cylinder") {
+				has_XR_KHR_composition_layer_cylinder = true;
+			}
+			else if (ext == "XR_KHR_composition_layer_equirect") {
+				has_XR_KHR_composition_layer_equirect = true;
+			}
+			else if (ext == "XR_KHR_composition_layer_equirect2") {
+				has_XR_KHR_composition_layer_equirect2 = true;
+			}
 
 		}
 		if (XR_FAILED(m_xrGetInstanceProcAddr(m_instance, "xrGetInstanceProperties", reinterpret_cast<PFN_xrVoidFunction*>(&m_xrGetInstanceProperties))))

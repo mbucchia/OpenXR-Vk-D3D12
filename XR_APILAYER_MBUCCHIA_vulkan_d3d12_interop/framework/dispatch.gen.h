@@ -267,6 +267,9 @@ namespace LAYER_NAMESPACE
 		bool has_XR_KHR_opengl_enable{false};
 		bool has_XR_KHR_D3D12_enable{false};
 		bool has_XR_KHR_composition_layer_depth{false};
+		bool has_XR_KHR_composition_layer_cylinder{false};
+		bool has_XR_KHR_composition_layer_equirect{false};
+		bool has_XR_KHR_composition_layer_equirect2{false};
 
 
 	};

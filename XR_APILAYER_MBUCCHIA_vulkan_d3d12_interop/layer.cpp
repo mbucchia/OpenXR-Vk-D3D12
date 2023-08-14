@@ -1417,7 +1417,29 @@ namespace {
                             reinterpret_cast<const XrCompositionLayerQuad*>(chainFrameEndInfo.layers[i]);
 
                         copySwapchainImageRect(quad->subImage);
+
+                    } else if (has_XR_KHR_composition_layer_cylinder &&
+                               chainFrameEndInfo.layers[i]->type == XR_TYPE_COMPOSITION_LAYER_CYLINDER_KHR) {
+                        const XrCompositionLayerCylinderKHR* cylinder =
+                            reinterpret_cast<const XrCompositionLayerCylinderKHR*>(chainFrameEndInfo.layers[i]);
+
+                        copySwapchainImageRect(cylinder->subImage);
+
+                    } else if (has_XR_KHR_composition_layer_equirect &&
+                               chainFrameEndInfo.layers[i]->type == XR_TYPE_COMPOSITION_LAYER_EQUIRECT_KHR) {
+                        const XrCompositionLayerEquirectKHR* equirect =
+                            reinterpret_cast<const XrCompositionLayerEquirectKHR*>(chainFrameEndInfo.layers[i]);
+
+                        copySwapchainImageRect(equirect->subImage);
+
+                    } else if (has_XR_KHR_composition_layer_equirect2 &&
+                               chainFrameEndInfo.layers[i]->type == XR_TYPE_COMPOSITION_LAYER_EQUIRECT2_KHR) {
+                        const XrCompositionLayerEquirect2KHR* equirect =
+                            reinterpret_cast<const XrCompositionLayerEquirect2KHR*>(chainFrameEndInfo.layers[i]);
+
+                        copySwapchainImageRect(equirect->subImage);
                     }
+
                     // TODO: Need to support all other composition layer types.
                 }
                 if (!swapchainsToRelease.empty()) {
