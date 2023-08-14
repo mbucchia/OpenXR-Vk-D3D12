@@ -231,6 +231,54 @@ namespace LAYER_NAMESPACE
 		return result;
 	}
 
+	XrResult XRAPI_CALL xrAcquireSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageAcquireInfo* acquireInfo, uint32_t* index)
+	{
+		TraceLoggingWrite(g_traceProvider, "xrAcquireSwapchainImage");
+
+		XrResult result;
+		try
+		{
+			result = LAYER_NAMESPACE::GetInstance()->xrAcquireSwapchainImage(swapchain, acquireInfo, index);
+		}
+		catch (std::exception exc)
+		{
+			TraceLoggingWrite(g_traceProvider, "xrAcquireSwapchainImage_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrAcquireSwapchainImage: %s\n", exc.what());
+			result = XR_ERROR_RUNTIME_FAILURE;
+		}
+
+		TraceLoggingWrite(g_traceProvider, "xrAcquireSwapchainImage_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrAcquireSwapchainImage failed with %s\n", xr::ToCString(result));
+		}
+
+		return result;
+	}
+
+	XrResult XRAPI_CALL xrReleaseSwapchainImage(XrSwapchain swapchain, const XrSwapchainImageReleaseInfo* releaseInfo)
+	{
+		TraceLoggingWrite(g_traceProvider, "xrReleaseSwapchainImage");
+
+		XrResult result;
+		try
+		{
+			result = LAYER_NAMESPACE::GetInstance()->xrReleaseSwapchainImage(swapchain, releaseInfo);
+		}
+		catch (std::exception exc)
+		{
+			TraceLoggingWrite(g_traceProvider, "xrReleaseSwapchainImage_Error", TLArg(exc.what(), "Error"));
+			ErrorLog("xrReleaseSwapchainImage: %s\n", exc.what());
+			result = XR_ERROR_RUNTIME_FAILURE;
+		}
+
+		TraceLoggingWrite(g_traceProvider, "xrReleaseSwapchainImage_Result", TLArg(xr::ToCString(result), "Result"));
+		if (XR_FAILED(result)) {
+			ErrorLog("xrReleaseSwapchainImage failed with %s\n", xr::ToCString(result));
+		}
+
+		return result;
+	}
+
 	XrResult XRAPI_CALL xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo)
 	{
 		TraceLoggingWrite(g_traceProvider, "xrEndFrame");
@@ -525,6 +573,16 @@ namespace LAYER_NAMESPACE
 			m_xrEnumerateSwapchainImages = reinterpret_cast<PFN_xrEnumerateSwapchainImages>(*function);
 			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrEnumerateSwapchainImages);
 		}
+		else if (apiName == "xrAcquireSwapchainImage")
+		{
+			m_xrAcquireSwapchainImage = reinterpret_cast<PFN_xrAcquireSwapchainImage>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrAcquireSwapchainImage);
+		}
+		else if (apiName == "xrReleaseSwapchainImage")
+		{
+			m_xrReleaseSwapchainImage = reinterpret_cast<PFN_xrReleaseSwapchainImage>(*function);
+			*function = reinterpret_cast<PFN_xrVoidFunction>(LAYER_NAMESPACE::xrReleaseSwapchainImage);
+		}
 		else if (apiName == "xrEndFrame")
 		{
 			m_xrEndFrame = reinterpret_cast<PFN_xrEndFrame>(*function);
@@ -589,6 +647,9 @@ namespace LAYER_NAMESPACE
 			}
 			else if (ext == "XR_KHR_D3D12_enable") {
 				has_XR_KHR_D3D12_enable = true;
+			}
+			else if (ext == "XR_KHR_composition_layer_depth") {
+				has_XR_KHR_composition_layer_depth = true;
 			}
 
 		}

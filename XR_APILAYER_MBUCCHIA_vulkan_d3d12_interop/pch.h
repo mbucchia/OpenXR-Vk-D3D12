@@ -27,6 +27,7 @@
 #include <chrono>
 #include <cstdarg>
 #include <ctime>
+#include <deque>
 #include <iomanip>
 #include <iostream>
 #include <filesystem>
@@ -36,6 +37,7 @@
 #include <memory>
 #include <map>
 #include <optional>
+#include <unordered_set>
 #include <vector>
 #include <mutex>
 

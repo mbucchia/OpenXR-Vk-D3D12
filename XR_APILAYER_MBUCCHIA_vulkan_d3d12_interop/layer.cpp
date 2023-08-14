@@ -75,6 +75,11 @@ namespace {
             ComPtr<ID3D12Fence> runtimeFence;
             UINT64 fenceValue{0};
 
+            // Command lists for copying textures if needed.
+            ComPtr<ID3D12CommandAllocator> commandAllocator[3];
+            ComPtr<ID3D12GraphicsCommandList> commandList[3];
+            uint32_t currentContext{0};
+
             GfxApi api;
             struct {
                 // We store information about the Vulkan device/queue that the app is using.
@@ -157,6 +162,9 @@ namespace {
             // The parent session.
             XrSession xrSession{XR_NULL_HANDLE};
 
+            // The runtime images.
+            std::vector<ID3D12Resource*> runtimeImages;
+
             // We import the memory corresponding to the D3D12 textures that the runtime exposes.
             struct {
                 std::vector<VkDeviceMemory> deviceMemory;
@@ -170,6 +178,13 @@ namespace {
                 // using OpenGL. We keep them alive for the whole session.
                 std::vector<wil::unique_handle> textureHandlesForAMDWorkaround;
             } gl;
+
+            // Application images in case the runtime images are not shareable.
+            std::vector<ComPtr<ID3D12Resource>> shareableImages;
+
+            std::deque<uint32_t> acquiredIndex;
+            uint32_t lastReleasedIndex{0};
+            bool deferredRelease{false};
         };
 
         // A utility class to switch OpenGL context.
@@ -1212,6 +1227,85 @@ namespace {
             return result;
         }
 
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrAcquireSwapchainImage
+        XrResult xrAcquireSwapchainImage(XrSwapchain swapchain,
+                                         const XrSwapchainImageAcquireInfo* acquireInfo,
+                                         uint32_t* index) override {
+            std::unique_lock lock(m_globalLock);
+
+            TraceLoggingWrite(g_traceProvider, "xrAcquireSwapchainImage", TLXArg(swapchain, "Swapchain"));
+
+            {
+                auto it = m_swapchains.find(swapchain);
+                if (it != m_swapchains.end()) {
+                    if (it->second.deferredRelease) {
+                        // If we already deferred release this frame, and the application now wants to acquire a new
+                        // image, then release the previous image before acquiring a new one.
+                        TraceLoggingWrite(g_traceProvider,
+                                          "xrAcquireSwapchainImage_DeferredSwapchainRelease",
+                                          TLXArg(swapchain, "Swapchain"));
+                        CHECK_XRCMD(OpenXrApi::xrReleaseSwapchainImage(swapchain, nullptr));
+                        it->second.deferredRelease = false;
+                    }
+                }
+            }
+
+            lock.unlock();
+            const XrResult result = OpenXrApi::xrAcquireSwapchainImage(swapchain, acquireInfo, index);
+            lock.lock();
+
+            if (XR_SUCCEEDED(result)) {
+                TraceLoggingWrite(g_traceProvider, "xrAcquireSwapchainImage", TLArg(*index, "Index"));
+
+                auto it = m_swapchains.find(swapchain);
+                if (it != m_swapchains.end()) {
+                    Swapchain& entry = it->second;
+                    entry.acquiredIndex.push_back(*index);
+                }
+            }
+
+            return result;
+        }
+
+        // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrReleaseSwapchainImage
+        XrResult xrReleaseSwapchainImage(XrSwapchain swapchain,
+                                         const XrSwapchainImageReleaseInfo* releaseInfo) override {
+            std::unique_lock lock(m_globalLock);
+
+            TraceLoggingWrite(g_traceProvider, "xrReleaseSwapchainImage", TLXArg(swapchain, "Swapchain"));
+
+            bool deferRelease = false;
+            {
+                auto it = m_swapchains.find(swapchain);
+                if (it != m_swapchains.end()) {
+                    // If we must perform a copy (due to the runtime images not being shareable), defer release to
+                    // ensure that xrEndFrame() can copy the image written by the application to the runtime swapchain.
+                    deferRelease = it->second.deferredRelease = !it->second.shareableImages.empty();
+                }
+            }
+
+            XrResult result = XR_ERROR_RUNTIME_FAILURE;
+            if (!deferRelease) {
+                lock.unlock();
+                result = OpenXrApi::xrReleaseSwapchainImage(swapchain, releaseInfo);
+                lock.lock();
+            } else {
+                TraceLoggingWrite(g_traceProvider, "xrReleaseSwapchainImage_Defer");
+                result = XR_SUCCESS;
+            }
+
+            if (XR_SUCCEEDED(result)) {
+                auto it = m_swapchains.find(swapchain);
+                if (it != m_swapchains.end()) {
+                    Swapchain& entry = it->second;
+                    entry.lastReleasedIndex = entry.acquiredIndex.front();
+                    entry.acquiredIndex.pop_front();
+                }
+            }
+
+            return result;
+        }
+
         // https://www.khronos.org/registry/OpenXR/specs/1.0/html/xrspec.html#xrEndFrame
         XrResult xrEndFrame(XrSession session, const XrFrameEndInfo* frameEndInfo) override {
             if (frameEndInfo->type != XR_TYPE_FRAME_END_INFO) {
@@ -1262,6 +1356,92 @@ namespace {
                     glFlush();
                 }
                 CHECK_HRCMD(sessionState.runtimeQueue->Wait(sessionState.runtimeFence.Get(), sessionState.fenceValue));
+
+                // Perform copy from shareable application textures to non-shareable runtime textures if needed.
+                std::unordered_set<XrSwapchain> swapchainsToRelease;
+                const auto copySwapchainImageRect = [&](const XrSwapchainSubImage& image) {
+                    auto it = m_swapchains.find(image.swapchain);
+                    if (it != m_swapchains.end()) {
+                        auto& swapchain = it->second;
+                        if (!swapchain.shareableImages.empty()) {
+                            D3D12_TEXTURE_COPY_LOCATION src{};
+                            src.pResource = swapchain.shareableImages[swapchain.lastReleasedIndex].Get();
+                            src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+                            src.SubresourceIndex = image.imageArrayIndex;
+
+                            D3D12_TEXTURE_COPY_LOCATION dest{};
+                            dest.pResource = swapchain.runtimeImages[swapchain.lastReleasedIndex];
+                            dest.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+                            dest.SubresourceIndex = image.imageArrayIndex;
+
+                            D3D12_BOX box{};
+                            box.left = image.imageRect.offset.x;
+                            box.top = image.imageRect.offset.y;
+                            box.right = box.left + image.imageRect.extent.width;
+                            box.bottom = box.top + image.imageRect.extent.height;
+                            box.back = 1;
+                            sessionState.commandList[sessionState.currentContext]->CopyTextureRegion(
+                                &dest, image.imageRect.offset.x, image.imageRect.offset.y, 0, &src, &box);
+
+                            swapchainsToRelease.insert(image.swapchain);
+                            swapchain.deferredRelease = false;
+                        }
+                    }
+                };
+                for (uint32_t i = 0; i < chainFrameEndInfo.layerCount; i++) {
+                    if (chainFrameEndInfo.layers[i]->type == XR_TYPE_COMPOSITION_LAYER_PROJECTION) {
+                        const XrCompositionLayerProjection* proj =
+                            reinterpret_cast<const XrCompositionLayerProjection*>(chainFrameEndInfo.layers[i]);
+
+                        for (uint32_t viewIndex = 0; viewIndex < proj->viewCount; viewIndex++) {
+                            copySwapchainImageRect(proj->views[viewIndex].subImage);
+
+                            if (has_XR_KHR_composition_layer_depth) {
+                                const XrBaseInStructure* entry =
+                                    reinterpret_cast<const XrBaseInStructure*>(proj->views[viewIndex].next);
+                                while (entry) {
+                                    if (entry->type == XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR) {
+                                        const XrCompositionLayerDepthInfoKHR* depth =
+                                            reinterpret_cast<const XrCompositionLayerDepthInfoKHR*>(entry);
+                                        copySwapchainImageRect(depth->subImage);
+                                        break;
+                                    }
+
+                                    entry = entry->next;
+                                }
+                            }
+                        }
+
+                    } else if (chainFrameEndInfo.layers[i]->type == XR_TYPE_COMPOSITION_LAYER_QUAD) {
+                        const XrCompositionLayerQuad* quad =
+                            reinterpret_cast<const XrCompositionLayerQuad*>(chainFrameEndInfo.layers[i]);
+
+                        copySwapchainImageRect(quad->subImage);
+                    }
+                    // TODO: Need to support all other composition layer types.
+                }
+                if (!swapchainsToRelease.empty()) {
+                    CHECK_HRCMD(sessionState.commandList[sessionState.currentContext]->Close());
+                    ID3D12CommandList* commandLists[] = {sessionState.commandList[sessionState.currentContext].Get()};
+                    sessionState.runtimeQueue->ExecuteCommandLists(1, commandLists);
+                    sessionState.currentContext++;
+                    if (sessionState.currentContext >= std::size(sessionState.commandList)) {
+                        sessionState.currentContext = 0;
+                    }
+
+                    // Prepare for the next xrEndFrame().
+                    CHECK_HRCMD(sessionState.commandAllocator[sessionState.currentContext]->Reset());
+                    CHECK_HRCMD(sessionState.commandList[sessionState.currentContext]->Reset(
+                        sessionState.commandAllocator[sessionState.currentContext].Get(), nullptr));
+                }
+
+                // Perform deferred swapchain release.
+                for (auto swapchain : swapchainsToRelease) {
+                    TraceLoggingWrite(
+                        g_traceProvider, "xrEndFrame_DeferredSwapchainRelease", TLXArg(swapchain, "Swapchain"));
+
+                    CHECK_XRCMD(OpenXrApi::xrReleaseSwapchainImage(swapchain, nullptr));
+                }
 
                 // When using OpenGL, the Y-axis is inverted, and we must tell the runtime to render the image
                 // upside-up. We use the FOV to do that.
@@ -1406,6 +1586,25 @@ namespace {
             // We will use a shareable fence to synchronize between the Vulkan queue and the D3D queue.
             CHECK_HRCMD(session.runtimeDevice->CreateFence(
                 0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS(session.runtimeFence.ReleaseAndGetAddressOf())));
+
+            // We may need command lists to perform copies between shareable/non-shareable textures.
+            for (uint32_t i = 0; i < std::size(session.commandAllocator); i++) {
+                CHECK_HRCMD(session.runtimeDevice->CreateCommandAllocator(
+                    D3D12_COMMAND_LIST_TYPE_DIRECT,
+                    IID_PPV_ARGS(session.commandAllocator[i].ReleaseAndGetAddressOf())));
+                CHECK_HRCMD(session.runtimeDevice->CreateCommandList(
+                    0,
+                    D3D12_COMMAND_LIST_TYPE_DIRECT,
+                    session.commandAllocator[i].Get(),
+                    nullptr,
+                    IID_PPV_ARGS(session.commandList[i].ReleaseAndGetAddressOf())));
+
+                // Set to a known state.
+                if (i != 0) {
+                    CHECK_HRCMD(session.commandList[i]->Close());
+                }
+            }
+            session.currentContext = 0;
         }
 
         XrResult initializeVulkanResources(Session& session, const XrGraphicsBindingVulkanKHR& vkBindings) {
@@ -1552,7 +1751,7 @@ namespace {
         }
 
         void getRuntimeSwapchainImages(const Session& sessionState,
-                                       const Swapchain& swapchainState,
+                                       Swapchain& swapchainState,
                                        std::vector<wil::unique_handle>& textureHandles) {
             // Enumerate the runtime swapchain images.
             uint32_t count = 0;
@@ -1569,6 +1768,8 @@ namespace {
                 // Dump the runtime texture descriptor.
                 if (i == 0) {
                     const auto& desc = runtimeImages[0].texture->GetDesc();
+                    D3D12_HEAP_FLAGS heapFlags;
+                    CHECK_HRCMD(runtimeImages[0].texture->GetHeapProperties(nullptr, &heapFlags));
                     TraceLoggingWrite(g_traceProvider,
                                       "xrCreateSwapchain",
                                       TLArg("D3D12", "Api"),
@@ -1578,7 +1779,8 @@ namespace {
                                       TLArg(desc.MipLevels, "MipCount"),
                                       TLArg(desc.SampleDesc.Count, "SampleCount"),
                                       TLArg((int)desc.Format, "Format"),
-                                      TLArg((int)desc.Flags, "Flags"));
+                                      TLArg((int)desc.Flags, "Flags"),
+                                      TLArg((int)heapFlags, "HeapFlags"));
                     Log("Swapchain image descriptor:\n");
                     Log("  w=%u h=%u arraySize=%u format=%u\n",
                         desc.Width,
@@ -1587,11 +1789,43 @@ namespace {
                         desc.Format);
                     Log("  mipCount=%u sampleCount=%u\n", desc.MipLevels, desc.SampleDesc.Count);
                     Log("  flags=0x%x\n", desc.Flags);
+                    Log("  heapFlags=0x%x\n", heapFlags);
+                    if (!(heapFlags & D3D12_HEAP_FLAG_SHARED)) {
+                        Log("  Textures are not shareable!\n");
+                    }
                 }
 
+                swapchainState.runtimeImages.push_back(runtimeImages[i].texture);
+
+                D3D12_HEAP_FLAGS heapFlags;
+                CHECK_HRCMD(runtimeImages[i].texture->GetHeapProperties(nullptr, &heapFlags));
+
                 wil::unique_handle textureHandle = nullptr;
-                CHECK_HRCMD(sessionState.runtimeDevice->CreateSharedHandle(
-                    runtimeImages[i].texture, nullptr, GENERIC_ALL, nullptr, textureHandle.put()));
+                if ((heapFlags & D3D12_HEAP_FLAG_SHARED)) {
+                    CHECK_HRCMD(sessionState.runtimeDevice->CreateSharedHandle(
+                        runtimeImages[i].texture, nullptr, GENERIC_ALL, nullptr, textureHandle.put()));
+                } else {
+                    // If the runtime textures are not shareable, then we must use a bounce buffer. We will give the
+                    // application a set of shareable textures that we created, and perform a copy to the runtime
+                    // textures during xrEndFrame().
+                    ComPtr<ID3D12Resource> shareableTexture;
+                    D3D12_HEAP_PROPERTIES heapProperties{};
+                    heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+                    heapProperties.CreationNodeMask = heapProperties.VisibleNodeMask = 1;
+                    const auto& desc = runtimeImages[0].texture->GetDesc();
+                    CHECK_HRCMD(sessionState.runtimeDevice->CreateCommittedResource(
+                        &heapProperties,
+                        D3D12_HEAP_FLAG_SHARED,
+                        &desc,
+                        D3D12_RESOURCE_STATE_COMMON,
+                        nullptr,
+                        IID_PPV_ARGS(shareableTexture.ReleaseAndGetAddressOf())));
+
+                    CHECK_HRCMD(sessionState.runtimeDevice->CreateSharedHandle(
+                        shareableTexture.Get(), nullptr, GENERIC_ALL, nullptr, textureHandle.put()));
+
+                    swapchainState.shareableImages.push_back(shareableTexture);
+                }
                 textureHandles.push_back(std::move(textureHandle));
             }
         }
