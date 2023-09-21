@@ -114,7 +114,7 @@ namespace {
                     PFN_vkCmdPipelineBarrier vkCmdPipelineBarrier{nullptr};
                     PFN_vkEndCommandBuffer vkEndCommandBuffer{nullptr};
                     PFN_vkGetMemoryWin32HandlePropertiesKHR vkGetMemoryWin32HandlePropertiesKHR{nullptr};
-                    PFN_vkBindImageMemory2KHR vkBindImageMemory2KHR{nullptr};
+                    PFN_vkBindImageMemory vkBindImageMemory{nullptr};
                     PFN_vkCreateSemaphore vkCreateSemaphore{nullptr};
                     PFN_vkDestroySemaphore vkDestroySemaphore{nullptr};
                     PFN_vkImportSemaphoreWin32HandleKHR vkImportSemaphoreWin32HandleKHR{nullptr};
@@ -392,7 +392,7 @@ namespace {
                                                 uint32_t* bufferCountOutput,
                                                 char* buffer) override {
             static const std::string_view deviceExtensions =
-                "VK_KHR_dedicated_allocation VK_KHR_get_memory_requirements2 VK_KHR_bind_memory2 "
+                "VK_KHR_dedicated_allocation VK_KHR_get_memory_requirements2 "
                 "VK_KHR_external_memory "
                 "VK_KHR_external_memory_win32 VK_KHR_timeline_semaphore "
                 "VK_KHR_external_semaphore VK_KHR_external_semaphore_win32";
@@ -1532,7 +1532,7 @@ namespace {
             VK_GET_PTR(vkCmdPipelineBarrier);
             VK_GET_PTR(vkEndCommandBuffer);
             VK_GET_PTR(vkGetMemoryWin32HandlePropertiesKHR);
-            VK_GET_PTR(vkBindImageMemory2KHR);
+            VK_GET_PTR(vkBindImageMemory);
             VK_GET_PTR(vkCreateSemaphore);
             VK_GET_PTR(vkDestroySemaphore);
             VK_GET_PTR(vkImportSemaphoreWin32HandleKHR);
@@ -1969,10 +1969,7 @@ namespace {
 
                 swapchain.vk.deviceMemory.push_back(memory);
 
-                VkBindImageMemoryInfo bindImageInfo{VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO};
-                bindImageInfo.image = image;
-                bindImageInfo.memory = memory;
-                CHECK_VKCMD(sessionState.vk.dispatch.vkBindImageMemory2KHR(sessionState.vk.device, 1, &bindImageInfo));
+                CHECK_VKCMD(sessionState.vk.dispatch.vkBindImageMemory(sessionState.vk.device, image, memory, 0));
 
                 // Transition the image to the layout expected by the application.
                 if (needTransition) {

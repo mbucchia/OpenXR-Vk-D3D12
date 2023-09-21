@@ -14,7 +14,7 @@ For troubleshooting, the log file can be found at `%LocalAppData%\XR_APILAYER_MB
 
 - This has only been tested with Windows Mixed Reality.
 - This has only been tested with NVIDIA and AMD video cards.
-- Vulkan support has been tested with the HelloXR sample app from Khronos, Unity 2021, Godot 4 and Adobe Substance 3D.
+- Vulkan support has been tested with the HelloXR sample app from Khronos, Unity 2021, Godot 4, Adobe Substance 3D and Enscape 3D.
 - OpenGL support has been tested with the HelloXR sample app from Khronos, X-Plane 12 Demo, Autodesk VRED 2024 and Paraview.
 - It is compatible with [OpenXR Toolkit](https://mbucchia.github.io/OpenXR-Toolkit/).
 
