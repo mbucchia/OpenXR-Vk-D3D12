@@ -12,6 +12,9 @@
     <Filter Include="Framework">
       <UniqueIdentifier>{060fbbc6-44b1-4494-b904-cb9719cec138}</UniqueIdentifier>
     </Filter>
+    <Filter Include="fmt">
+      <UniqueIdentifier>{e9f3bd04-77d5-4ce3-97f5-25a3584b2034}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h">
@@ -54,6 +57,9 @@
     </ClCompile>
     <ClCompile Include="framework\entry.cpp">
       <Filter>Framework</Filter>
+    </ClCompile>
+    <ClCompile Include="..\external\fmt\src\format.cc">
+      <Filter>fmt</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
