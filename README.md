@@ -12,7 +12,7 @@ For troubleshooting, the log file can be found at `%LocalAppData%\XR_APILAYER_MB
 
 ## Limitations
 
-- This has only been tested with Windows Mixed Reality.
+- This has only been tested with the original Windows Mixed Reality (Mixed Reality Portal). If you are using [Oasis for Windows Mixed Reality](https://store.steampowered.com/app/3824490/Oasis_Driver_for_Windows_Mixed_Reality/) (and you should!) this program is **NOT NEEDED**.
 - This has only been tested with NVIDIA and AMD video cards.
 - Vulkan support has been tested with BeamNG, the X-Plane 12 Demo, the HelloXR sample app from Khronos, Unity 2021, Godot 4, Adobe Substance 3D and Enscape 3D.
 - OpenGL support has been tested with HelloXR sample app from Khronos, Autodesk VRED 2024 and Paraview.
